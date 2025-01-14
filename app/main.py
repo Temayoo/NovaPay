@@ -1,3 +1,4 @@
+import threading
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
@@ -20,11 +21,14 @@ from crud import (
     create_premier_compte_bancaire,
     get_user_by_email,
     create_depot,
+    create_transaction,
+    get_my_transactions,
+    asleep_transaction
 )
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
-from schemas import UserLogin
+from schemas import UserLogin, TransactionResponse
 from database import SessionLocal, engine, Base
 from models import User
 from schemas import UserBase, UserCreate
@@ -185,6 +189,37 @@ def create_depot_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/send", response_model=TransactionResponse)
+def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
+    db_transaction = create_transaction(db=db, transaction=transaction)
+    print(db_transaction.compte_receveur)
+    threading.Thread(target=asleep_transaction, args=(db, db_transaction, db_transaction.compte_receveur)).start()
+
+    return TransactionResponse(
+        montant=db_transaction.montant,
+        description=db_transaction.description,
+        compte_envoyeur=db_transaction.compte_envoyeur.iban,
+        compte_receveur=db_transaction.compte_receveur.iban,
+        date=db_transaction.date,
+        status=db_transaction.status,
+    )
+
+
+@app.get("me/transactions", response_model=list[TransactionBase])
+def get_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return get_my_transactions(db=db, user_id=current_user.id)
+
+@app.post("/transactions/{transaction_id}/cancel")
+def cancel_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+
+    if transaction.status != 0:
+        raise HTTPException(status_code=400, detail="Impossible d'annuler cette transaction")
+
+    transaction.status = 2
+    db.commit()
+    return {"message": "Transaction annulée avec succès"}
+
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
 def get_depots(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -207,8 +242,3 @@ def get_depots(
     ]
 
     return depots_response
-
-
-@app.post("/send", response_model=TransactionCreate)
-def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
-    return create_transaction(db=db, transaction=transaction)

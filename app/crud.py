@@ -1,10 +1,11 @@
 # crud.py
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from models import User, CompteBancaire, Depot
+from time import sleep
+from models import User, CompteBancaire, Depot, Transaction
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from schemas import UserCreate, CompteBancaireCreate, DepotCreate
+from schemas import UserCreate, CompteBancaireCreate, DepotCreate, TransactionBase
 import random
 import string
 from datetime import datetime
@@ -121,3 +122,45 @@ def get_user_by_username(db: Session, email: str):
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
+
+def get_my_transactions(db: Session, user_id: int):
+    return db.query(Transaction).filter(Transaction.user_id == user_id).all()
+
+def create_transaction(db: Session, transaction: TransactionBase):
+    compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.iban == transaction.compte_envoyeur).first()
+    compte_receveur = db.query(CompteBancaire).filter(CompteBancaire.iban == transaction.compte_receveur).first()
+    
+    if not compte_envoyeur or not compte_receveur:
+        raise ValueError("Compte source ou destination non trouvé")
+    elif compte_envoyeur.solde < transaction.montant:
+        raise ValueError("Solde insuffisant")
+    
+    compte_envoyeur.solde -= transaction.montant
+
+    db_transaction = Transaction(
+        montant=transaction.montant,
+        description=transaction.description,
+        compte_id_envoyeur=compte_envoyeur.id,
+        compte_id_receveur=compte_receveur.id,
+        status=0,
+    )
+    db.add(db_transaction)
+    db.commit()
+    db.refresh(db_transaction)
+
+    return db_transaction   
+
+def asleep_transaction(db: Session, transaction: Transaction, compte_receveur: CompteBancaire):
+    sleep(10)
+    db.refresh(transaction)
+
+    if transaction.status == 2:
+        print("Transaction annulée.")
+        return
+
+    if transaction.status == 0:
+        compte_receveur.solde += transaction.montant
+        transaction.status = 1
+        db.commit()
+        db.refresh(compte_receveur)
+        db.refresh(transaction)

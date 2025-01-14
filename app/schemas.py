@@ -6,9 +6,21 @@ class UserBase(BaseModel):
     username: str
     email: str
 
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 class UserCreate(UserBase):
     password: str
+
+    @root_validator(pre=True)
+    def check_email(cls, values):
+        if '@' not in values.get("email"):
+            raise ValueError("Email must contain an @")
+        return values
+
+    class Config:
+        orm_mode = True
 
     @root_validator(pre=True)
     def check_password(cls, values):

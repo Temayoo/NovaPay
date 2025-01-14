@@ -6,32 +6,33 @@ from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+import uvicorn
 
 # --- Configuration des paramètres ---
-SECRET_KEY = "your_secret_key_here"  # Clé secrète pour signer les tokens JWT
-ALGORITHM = "HS256"  # Algorithme de cryptage utilisé pour le JWT
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Durée d'expiration du token d'accès
+SECRET_KEY = "your_secret_key_here"  # Clé pour signer les tokens JWT
+ALGORITHM = "HS256"  # Algorithme de cryptage
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Durée d'expiration du token
 
 DATABASE_URL = "sqlite:///./test.db"  # URL de la base de données SQLite
 
 # --- Configuration de SQLAlchemy ---
-Base = declarative_base()  # Classe de base pour les modèles SQLAlchemy
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})  # Création de l'engine de la base de données
+Base = declarative_base()  # Classe de base pour les modèles
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})  # Création de l'engine
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)  # Configuration de la session
 
 # --- Création de l'application FastAPI ---
 app = FastAPI()
 
 # --- Configuration de la sécurité ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # Contexte pour le hachage des mots de passe
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # Schéma de sécurité pour OAuth2
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # Hachage des mots de passe
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # Schéma d'authentification OAuth2
 
 # --- Modèle SQLAlchemy pour l'utilisateur ---
 class User(Base):
-    __tablename__ = "users"  # Nom de la table dans la base de données
-    id = Column(Integer, primary_key=True, index=True)  # Identifiant unique de l'utilisateur
-    username = Column(String, unique=True, index=True)  # Nom d'utilisateur unique
-    hashed_password = Column(String)  # Mot de passe haché
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
 
 # --- Création des tables dans la base de données ---
 Base.metadata.create_all(bind=engine)
@@ -100,8 +101,13 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @app.get("/users/me")
 def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    print(f"Received token: {token}")
     username = decode_access_token(token)  # Décode le token pour obtenir le nom d'utilisateur
     user = get_user_by_username(db, username)  # Récupère l'utilisateur
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")  # Gère l'absence d'utilisateur
     return {"username": user}  # Retourne les informations de l'utilisateur
+
+# --- Démarrage de l'application ---
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

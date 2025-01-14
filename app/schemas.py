@@ -75,3 +75,10 @@ class DepotResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class TransactionCreate(BaseModel):
+    montant: Decimal
+    compte_source: str
+    compte_destination: str
+

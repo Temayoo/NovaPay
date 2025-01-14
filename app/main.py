@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
-from models import Base, CompteBancaire, Depot
+from models import Base, Transaction, CompteBancaire, Depot
 from schemas import (
     UserCreate,
     UserBase,
@@ -10,6 +10,7 @@ from schemas import (
     DepotCreate,
     CompteBancaireResponse,
     DepotResponse,
+    TransactionCreate
 )
 from crud import (
     create_user,
@@ -206,3 +207,8 @@ def get_depots(
     ]
 
     return depots_response
+
+
+@app.post("/send", response_model=TransactionCreate)
+def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
+    return create_transaction(db=db, transaction=transaction)

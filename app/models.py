@@ -51,5 +51,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(DateTime, default=datetime.utcnow)
     montant = Column(Numeric(precision=10, scale=2))
+    description = Column(String)
+    status = Column(Integer)
     compte_source_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
     compte_destination_id = Column(Integer, ForeignKey("comptes_bancaires.id"))

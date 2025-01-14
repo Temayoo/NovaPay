@@ -44,3 +44,12 @@ class Depot(Base):
     compte_bancaire_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
 
     compte_bancaire = relationship("CompteBancaire", back_populates="deposits")
+
+class Transaction(Base):
+    __tablename__ = "transaction"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(DateTime, default=datetime.utcnow)
+    montant = Column(Numeric(precision=10, scale=2))
+    compte_source_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
+    compte_destination_id = Column(Integer, ForeignKey("comptes_bancaires.id"))

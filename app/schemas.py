@@ -1,5 +1,6 @@
 # schemas.py
 from pydantic import BaseModel, root_validator
+from decimal import Decimal
 
 
 class UserBase(BaseModel):
@@ -41,3 +42,10 @@ class UserCreate(UserBase):
 
 class UserInDB(UserBase):
     hashed_password: str
+
+class CompteBancaireCreate(BaseModel):
+    nom: str
+    est_compte_courant: bool
+
+    class Config:
+        orm_mode = True

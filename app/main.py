@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
+from database import SessionLocal, engine
+from models import Base
+from schemas import UserCreate, UserBase, CompteBancaireCreate
+from crud import create_user, get_user_by_username, verify_password, create_compte_bancaire
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
@@ -79,3 +83,8 @@ async def login(form_data: UserLogin, db: Session = Depends(get_db)):
 @app.get("/me", response_model=UserBase)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user  # Renvoie l'utilisateur complet
+
+@app.post("/comptes-bancaires/")
+def create_compte(compte: CompteBancaireCreate, db: Session = Depends(get_db)):
+    user_id = 1
+    return create_compte_bancaire(db=db, compte=compte, user_id=user_id)

@@ -124,7 +124,26 @@ def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
 
 def get_my_transactions(db: Session, user_id: int):
-    return db.query(Transaction).filter(Transaction.user_id == user_id).all()
+    transactions = db.query(Transaction).filter(
+        (Transaction.compte_id_envoyeur == user_id) | (Transaction.compte_id_receveur == user_id)
+    ).order_by(Transaction.date.desc()).all()
+
+    response = []
+    for transaction in transactions:
+        compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.id == transaction.compte_id_envoyeur).first()
+        compte_receveur = db.query(CompteBancaire).filter(CompteBancaire.id == transaction.compte_id_receveur).first()
+
+        response.append({
+            "montant": transaction.montant,
+            "description": transaction.description,
+            "compte_envoyeur": compte_envoyeur.iban,
+            "compte_receveur": compte_receveur.iban,
+            "date": transaction.date,
+            "status": transaction.status
+        })
+
+    return response
+
 
 def create_transaction(db: Session, transaction: TransactionBase):
     compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.iban == transaction.compte_envoyeur).first()
@@ -134,6 +153,10 @@ def create_transaction(db: Session, transaction: TransactionBase):
         raise ValueError("Compte source ou destination non trouvé")
     elif compte_envoyeur.solde < transaction.montant:
         raise ValueError("Solde insuffisant")
+    elif compte_envoyeur.id == compte_receveur.id:
+        raise ValueError("Le compte envoyeur et le compte receveur ne peuvent pas être identiques")
+    elif transaction.montant <= 0:
+        raise ValueError("Le montant de la transaction ne peut pas être inférieur ou égal à 0")
     
     compte_envoyeur.solde -= transaction.montant
 
@@ -152,7 +175,12 @@ def create_transaction(db: Session, transaction: TransactionBase):
 
 def asleep_transaction(db: Session, transaction: Transaction, compte_receveur: CompteBancaire):
     sleep(10)
-    db.refresh(transaction)
+    transaction = db.query(Transaction).filter(Transaction.id == transaction.id).first()
+    compte_receveur = db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).first()
+
+    if transaction is None:
+        print("Transaction not found.")
+        return
 
     if transaction.status == 2:
         print("Transaction annulée.")

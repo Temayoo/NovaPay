@@ -89,3 +89,6 @@ class TransactionResponse(BaseModel):
     date: datetime
     status: int
 
+    class Config:
+        orm_mode = True
+

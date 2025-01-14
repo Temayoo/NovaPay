@@ -11,7 +11,8 @@ from schemas import (
     DepotCreate,
     CompteBancaireResponse,
     DepotResponse,
-    TransactionCreate
+    TransactionCreate,
+    TransactionBase
 )
 from crud import (
     create_user,
@@ -148,17 +149,6 @@ def get_comptes_bancaires(
     response_model=list[CompteBancaireResponse],
     tags=["Bank Account"],
 )
-def get_comptes_bancaires(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
-):
-    comptes = (
-        db.query(CompteBancaire)
-        .filter(CompteBancaire.user_id == current_user.id)
-        .filter(CompteBancaire.est_compte_courant == True)
-        .all()
-    )
-    return comptes
-
 
 @app.post("/depot", tags=["Deposits"])
 def create_depot_endpoint(
@@ -189,7 +179,7 @@ def create_depot_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/send", response_model=TransactionResponse)
+@app.post("/send", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
     db_transaction = create_transaction(db=db, transaction=transaction)
     print(db_transaction.compte_receveur)
@@ -205,19 +195,26 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
     )
 
 
-@app.get("me/transactions", response_model=list[TransactionBase])
+@app.get("/transactions/", response_model=list[TransactionResponse], tags=["Transaction"])
 def get_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return get_my_transactions(db=db, user_id=current_user.id)
 
-@app.post("/transactions/{transaction_id}/cancel")
-def cancel_transaction(transaction_id: int, db: Session = Depends(get_db)):
+
+@app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
+def cancel_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.id == transaction.compte_envoyeur).first()
 
     if transaction.status != 0:
         raise HTTPException(status_code=400, detail="Impossible d'annuler cette transaction")
+    elif compte_envoyeur.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour annuler cette transaction")
 
+    compte_envoyeur.solde += transaction.montant
     transaction.status = 2
     db.commit()
+    db.refresh(compte_envoyeur)
+    db.refresh(transaction)
     return {"message": "Transaction annulée avec succès"}
 
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])

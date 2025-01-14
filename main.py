@@ -19,6 +19,7 @@ app = FastAPI()
 # Configuration de l'authentification OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+
 # Fonction pour créer un token JWT
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=15)):
     to_encode = data.copy()
@@ -26,6 +27,7 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
 
 # Fonction pour obtenir la session de la base de données
 def get_db():
@@ -35,6 +37,28 @@ def get_db():
     finally:
         db.close()
 
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
+    try:
+        # Décoder le token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=401, detail="Could not validate credentials"
+            )
+        user = get_user_by_username(db, username=username)
+        if user is None:
+            raise HTTPException(
+                status_code=401, detail="Could not validate credentials"
+            )
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+
 # Route pour enregistrer un utilisateur
 @app.post("/register", response_model=UserBase)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -43,14 +67,18 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username already registered")
     return create_user(db=db, user=user)
 
+
 # Route pour se connecter et obtenir un token
 @app.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
     user = get_user_by_username(db, username=form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 # Route protégée par authentification JWT
 @app.get("/me", response_model=UserBase)

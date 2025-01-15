@@ -207,7 +207,6 @@ def create_depot_endpoint(
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
     db_transaction = create_transaction(db=db, transaction=transaction)
-    print(db_transaction.compte_receveur)
     threading.Thread(
         target=asleep_transaction,
         args=(db, db_transaction, db_transaction.compte_receveur),

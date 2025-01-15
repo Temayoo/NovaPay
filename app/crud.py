@@ -97,37 +97,43 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         if not compte:
             raise ValueError("Compte bancaire non trouvé")
 
-        db_depot = Depot(montant=depot.montant, compte_bancaire_id=compte_bancaire_id)
+        difference = compte.solde + depot.montant - 50000
 
-        db.add(db_depot)
-        db.commit()
-        db.refresh(db_depot)
+        if difference > 0 and not compte.est_compte_courant:
+            # On ajoute le montant maximum possible au compte secondaire
+            compte.solde += depot.montant - difference
+            db.commit()
+            db.refresh(compte)
 
-        compte.solde += depot.montant
-        db.commit()
-        db.refresh(compte)
+            db_depot = Depot(montant=depot.montant - difference, compte_bancaire_id=compte_bancaire_id)
 
-        difference = check_account_limit(compte)
-        if difference > 0:
+            db.add(db_depot)
+            db.commit()
+            db.refresh(db_depot)
+            
+            # On crée un nouveau dépôt pour le compte courant afin d'ajouter le reste du montant
             compte_courant = (
                 db.query(CompteBancaire)
                 .filter(CompteBancaire.user_id == compte.user_id)
                 .filter(CompteBancaire.est_compte_courant == True)
                 .first()
             )
-            print(compte_courant)
-            create_transaction(
+            return create_depot(
                 db=db,
-                transaction=TransactionBase(
-                    montant=difference,
-                    description="Limite de compte dépassée",
-                    compte_envoyeur=compte.iban,
-                    compte_receveur=compte_courant.iban,
-                ),
+                depot=DepotCreate(montant=difference, iban=compte_courant.iban),
+                compte_bancaire_id=compte_courant.id,
             )
-            compte_courant.solde += difference
-            db.commit()
-            db.refresh(compte_courant)
+        
+        compte.solde += depot.montant
+        db.commit()
+        db.refresh(compte)
+
+        db_depot = Depot(montant=depot.montant, compte_bancaire_id=compte_bancaire_id)
+
+        db.add(db_depot)
+        db.commit()
+        db.refresh(db_depot)
+
         return db_depot
 
     except ValueError as ve:
@@ -251,7 +257,6 @@ def asleep_transaction(
         db.commit()
         db.refresh(compte_receveur)
         db.refresh(transaction)
-
         difference = check_account_limit(compte_receveur)
         if difference > 0:
             print(
@@ -272,10 +277,6 @@ def asleep_transaction(
                     compte_receveur=compte_courant.iban,
                 ),
             )
-            compte_courant.solde += difference
-            db.commit()
-            db.refresh(compte_courant)
-
 def check_account_limit(compte_bancaire: CompteBancaire):
     if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:
         return compte_bancaire.solde - 50000

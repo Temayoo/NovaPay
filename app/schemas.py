@@ -3,6 +3,7 @@ from pydantic import BaseModel, root_validator
 from decimal import Decimal
 from datetime import datetime
 
+
 class UserBase(BaseModel):
     username: str
     email: str
@@ -75,11 +76,13 @@ class DepotResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
 class TransactionBase(BaseModel):
     montant: Decimal
     description: str
     compte_envoyeur: str
     compte_receveur: str
+
 
 class TransactionResponse(BaseModel):
     montant: Decimal
@@ -91,4 +94,3 @@ class TransactionResponse(BaseModel):
 
     class Config:
         orm_mode = True
-

@@ -31,10 +31,22 @@ class CompteBancaire(Base):
     # Relations
     user = relationship("User", back_populates="comptes_bancaires")
 
-    deposits = relationship("Depot", back_populates="compte_bancaire", cascade="all, delete-orphan")
+    deposits = relationship(
+        "Depot", back_populates="compte_bancaire", cascade="all, delete-orphan"
+    )
 
-    transactions_envoyees = relationship("Transaction", foreign_keys="Transaction.compte_id_envoyeur", back_populates="compte_envoyeur", cascade="all, delete-orphan")
-    transactions_reçues = relationship("Transaction", foreign_keys="Transaction.compte_id_receveur", back_populates="compte_receveur", cascade="all, delete-orphan")
+    transactions_envoyees = relationship(
+        "Transaction",
+        foreign_keys="Transaction.compte_id_envoyeur",
+        back_populates="compte_envoyeur",
+        cascade="all, delete-orphan",
+    )
+    transactions_reçues = relationship(
+        "Transaction",
+        foreign_keys="Transaction.compte_id_receveur",
+        back_populates="compte_receveur",
+        cascade="all, delete-orphan",
+    )
 
 
 class Depot(Base):
@@ -57,10 +69,21 @@ class Transaction(Base):
     montant = Column(Numeric(precision=10, scale=2))
     description = Column(String)
     status = Column(Integer, default=0)
-    compte_id_envoyeur = Column(Integer, ForeignKey("comptes_bancaires.id"), nullable=True)
-    compte_id_receveur = Column(Integer, ForeignKey("comptes_bancaires.id"), nullable=True)
+    compte_id_envoyeur = Column(
+        Integer, ForeignKey("comptes_bancaires.id"), nullable=True
+    )
+    compte_id_receveur = Column(
+        Integer, ForeignKey("comptes_bancaires.id"), nullable=True
+    )
 
     # Relations
-    compte_envoyeur = relationship("CompteBancaire", foreign_keys=[compte_id_envoyeur], back_populates="transactions_envoyees")
-    compte_receveur = relationship("CompteBancaire", foreign_keys=[compte_id_receveur], back_populates="transactions_reçues")
-
+    compte_envoyeur = relationship(
+        "CompteBancaire",
+        foreign_keys=[compte_id_envoyeur],
+        back_populates="transactions_envoyees",
+    )
+    compte_receveur = relationship(
+        "CompteBancaire",
+        foreign_keys=[compte_id_receveur],
+        back_populates="transactions_reçues",
+    )

@@ -24,7 +24,7 @@ from crud import (
     create_depot,
     create_transaction,
     get_my_transactions,
-    asleep_transaction
+    asleep_transaction,
 )
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -114,7 +114,8 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("/comptes-bancaires/", tags=["Bank Account"])
+@app.post("/comptes-bancaires/",
+          tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
     db: Session = Depends(get_db),
@@ -183,7 +184,10 @@ def create_depot_endpoint(
 def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
     db_transaction = create_transaction(db=db, transaction=transaction)
     print(db_transaction.compte_receveur)
-    threading.Thread(target=asleep_transaction, args=(db, db_transaction, db_transaction.compte_receveur)).start()
+    threading.Thread(
+        target=asleep_transaction,
+        args=(db, db_transaction, db_transaction.compte_receveur)
+    ).start()
 
     return TransactionResponse(
         montant=db_transaction.montant,
@@ -203,12 +207,21 @@ def get_transactions(db: Session = Depends(get_db), current_user: User = Depends
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
 def cancel_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
-    compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.id == transaction.compte_envoyeur).first()
+    compte_envoyeur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == transaction.compte_envoyeur)
+        .first()
+    )
 
     if transaction.status != 0:
-        raise HTTPException(status_code=400, detail="Impossible d'annuler cette transaction")
+        raise HTTPException(
+            status_code=400, detail="Impossible d'annuler cette transaction"
+        )
     elif compte_envoyeur.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour annuler cette transaction")
+        raise HTTPException(
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour annuler cette transaction",
+        )
 
     compte_envoyeur.solde += transaction.montant
     transaction.status = 2

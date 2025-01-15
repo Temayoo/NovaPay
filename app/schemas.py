@@ -62,6 +62,7 @@ class CompteBancaireResponse(BaseModel):
 
 class DepotCreate(BaseModel):
     montant: Decimal
+    iban: str
 
     class Config:
         orm_mode = True

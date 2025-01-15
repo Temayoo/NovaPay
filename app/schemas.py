@@ -75,3 +75,23 @@ class DepotResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class TransactionBase(BaseModel):
+    montant: Decimal
+    description: str
+    compte_envoyeur: str
+    compte_receveur: str
+
+
+class TransactionResponse(BaseModel):
+    id: int
+    montant: Decimal
+    description: str
+    compte_envoyeur: str
+    compte_receveur: str
+    date: datetime
+    status: int
+
+    class Config:
+        orm_mode = True

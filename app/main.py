@@ -1,8 +1,9 @@
+import threading
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
-from models import Base, CompteBancaire, Depot
+from models import Base, Transaction, CompteBancaire, Depot
 from schemas import (
     UserCreate,
     UserBase,
@@ -10,6 +11,7 @@ from schemas import (
     DepotCreate,
     CompteBancaireResponse,
     DepotResponse,
+    TransactionBase,
 )
 from crud import (
     create_user,
@@ -19,11 +21,14 @@ from crud import (
     create_premier_compte_bancaire,
     get_user_by_email,
     create_depot,
+    create_transaction,
+    get_my_transactions,
+    asleep_transaction,
 )
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
-from schemas import UserLogin
+from schemas import UserLogin, TransactionResponse
 from database import SessionLocal, engine, Base
 from models import User
 from schemas import UserBase, UserCreate
@@ -57,13 +62,13 @@ def get_db():
 def get_current_user(token: str = Depends(http_bearer), db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise HTTPException(
                 status_code=401, detail="Could not validate credentials"
             )
 
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.email == email).first()
         if user is None:
             raise HTTPException(
                 status_code=401, detail="Could not validate credentials"
@@ -96,10 +101,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", tags=["Authentication"])
 async def login(form_data: UserLogin, db: Session = Depends(get_db)):
+    print(form_data)
     user = get_user_by_username(db, email=form_data.email)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -108,7 +114,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("/comptes-bancaires/", tags=["Bank Account"])
+@app.post("/comptes-bancaires", tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
     db: Session = Depends(get_db),
@@ -182,6 +188,65 @@ def create_depot_endpoint(
         return new_depot
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
+def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
+    db_transaction = create_transaction(db=db, transaction=transaction)
+    print(db_transaction.compte_receveur)
+    threading.Thread(
+        target=asleep_transaction,
+        args=(db, db_transaction, db_transaction.compte_receveur),
+    ).start()
+
+    return TransactionResponse(
+        montant=db_transaction.montant,
+        description=db_transaction.description,
+        compte_envoyeur=db_transaction.compte_envoyeur.iban,
+        compte_receveur=db_transaction.compte_receveur.iban,
+        date=db_transaction.date,
+        status=db_transaction.status,
+    )
+
+
+@app.get(
+    "/transactions", response_model=list[TransactionResponse], tags=["Transaction"]
+)
+def get_transactions(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return get_my_transactions(db=db, user_id=current_user.id)
+
+
+@app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
+def cancel_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    compte_envoyeur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
+        .first()
+    )
+
+    if transaction.status != 0:
+        raise HTTPException(
+            status_code=400, detail="Impossible d'annuler cette transaction"
+        )
+    elif compte_envoyeur.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour annuler cette transaction",
+        )
+
+    compte_envoyeur.solde += transaction.montant
+    transaction.status = 2
+    db.commit()
+    db.refresh(compte_envoyeur)
+    db.refresh(transaction)
+    return {"message": "Transaction annulée avec succès"}
 
 
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])

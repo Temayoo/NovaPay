@@ -90,7 +90,7 @@ class TransactionResponse(BaseModel):
     description: str
     compte_envoyeur: str
     compte_receveur: str
-    date: datetime
+    date_creation: datetime
     status: int
 
     class Config:

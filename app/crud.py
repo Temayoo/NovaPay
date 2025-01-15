@@ -131,7 +131,7 @@ def get_my_transactions(db: Session, user_id: int):
             (Transaction.compte_id_envoyeur == user_id)
             | (Transaction.compte_id_receveur == user_id)
         )
-        .order_by(Transaction.date.desc())
+        .order_by(Transaction.date_creation.desc())
         .all()
     )
 
@@ -155,7 +155,7 @@ def get_my_transactions(db: Session, user_id: int):
                 "description": transaction.description,
                 "compte_envoyeur": compte_envoyeur.iban,
                 "compte_receveur": compte_receveur.iban,
-                "date": transaction.date,
+                "date_creation": transaction.date_creation,
                 "status": transaction.status,
             }
         )
@@ -174,6 +174,20 @@ def create_transaction(db: Session, transaction: TransactionBase):
         .filter(CompteBancaire.iban == transaction.compte_receveur)
         .first()
     )
+    if compte_receveur.est_compte_courant == False and (
+        compte_receveur.solde + transaction.montant > 50000
+    ):
+        compte_receveur = (
+            db.query(CompteBancaire)
+            .filter(
+                CompteBancaire.user_id == compte_receveur.user_id,
+                CompteBancaire.est_compte_courant == True,
+            )
+            .first()
+        )
+        print(
+            "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
+        )
 
     if not compte_envoyeur or not compte_receveur:
         raise ValueError("Compte source ou destination non trouvé")

@@ -11,7 +11,10 @@ class User(Base):
     username = Column(String, unique=False, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_deletion = Column(DateTime, default=None)
 
+    # Relations
     comptes_bancaires = relationship(
         "CompteBancaire", back_populates="user", cascade="all, delete-orphan"
     )
@@ -27,6 +30,7 @@ class CompteBancaire(Base):
     est_compte_courant = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id"))
     date_creation = Column(DateTime, default=datetime.utcnow)
+    date_deletion = Column(DateTime, default=None)
 
     # Relations
     user = relationship("User", back_populates="comptes_bancaires")
@@ -56,6 +60,8 @@ class Depot(Base):
     montant = Column(Numeric(precision=10, scale=2))
     date = Column(DateTime, default=datetime.utcnow)
     compte_bancaire_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_deletion = Column(DateTime, default=None)
 
     # Relations
     compte_bancaire = relationship("CompteBancaire", back_populates="deposits")
@@ -65,7 +71,8 @@ class Transaction(Base):
     __tablename__ = "transaction"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_deletion = Column(DateTime, default=None)
     montant = Column(Numeric(precision=10, scale=2))
     description = Column(String)
     status = Column(Integer, default=0)

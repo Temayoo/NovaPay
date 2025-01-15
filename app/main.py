@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
-from models import Base
-from schemas import UserCreate, UserBase, CompteBancaireCreate, DepotCreate
+from models import Base, CompteBancaire, Depot
+from schemas import UserCreate, UserBase, CompteBancaireCreate, DepotCreate, CompteBancaireResponse, DepotResponse
 from crud import (
     create_user,
     get_user_by_username,
@@ -65,8 +65,7 @@ def get_current_user(token: str = Depends(http_bearer), db: Session = Depends(ge
     except JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
-
-@app.post("/register", response_model=UserBase)
+@app.post("/register", response_model=UserBase, tags=["Authentication"])
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
@@ -87,7 +86,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
-@app.post("/login")
+@app.post("/login", tags=["Authentication"])
 async def login(form_data: UserLogin, db: Session = Depends(get_db)):
     user = get_user_by_username(db, email=form_data.email)
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -96,12 +95,12 @@ async def login(form_data: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/me", response_model=UserBase)
+@app.get("/me", response_model=UserBase, tags=["User"])
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("/comptes-bancaires/")
+@app.post("/comptes-bancaires/",  tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
     db: Session = Depends(get_db),
@@ -113,15 +112,75 @@ def create_compte(
 
     return create_compte_bancaire(db=db, compte=compte, user_id=current_user.id)
 
-
-@app.post("/depot/{compte_bancaire_id}")
-def create_depot_endpoint(
-    compte_bancaire_id: int, depot: DepotCreate, db: Session = Depends(get_db)
+@app.get("/comptes-bancaires", response_model=list[CompteBancaireResponse], tags=["Bank Account"])
+def get_comptes_bancaires(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
+    comptes = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .order_by(CompteBancaire.date_creation.desc())
+        .all()
+    )
+    return comptes
+
+@app.get("/compte-courant", response_model=list[CompteBancaireResponse], tags=["Bank Account"])
+def get_comptes_bancaires(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    comptes = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .filter(CompteBancaire.est_compte_courant == True)
+        .all()
+    )
+    return comptes
+
+@app.post("/depot", tags=["Deposits"])
+def create_depot_endpoint(
+    depot: DepotCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+
+    if depot.montant <= 0:
+        raise HTTPException(status_code=400, detail="Le montant doit être positif")
+
+    compte_bancaire = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .filter(CompteBancaire.est_compte_courant == True)
+        .first()
+    )
+
+    if not compte_bancaire:
+        raise HTTPException(status_code=404, detail="Compte courant non trouvé")
+
     try:
-        new_depot = create_depot(
-            db=db, depot=depot, compte_bancaire_id=compte_bancaire_id
-        )
+        new_depot = create_depot(db=db, depot=depot, compte_bancaire_id=compte_bancaire.id)
         return new_depot
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
+def get_depots(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    depots = (
+        db.query(Depot)
+        .join(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .all()
+    )
+
+    depots_response = [
+        DepotResponse(
+            date=depot.date,
+            montant=depot.montant,
+            compte_nom=depot.compte_bancaire.nom,
+            compte_iban=depot.compte_bancaire.iban
+        )
+        for depot in depots
+    ]
+
+    return depots_response

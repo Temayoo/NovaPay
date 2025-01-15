@@ -26,6 +26,7 @@ class CompteBancaire(Base):
     iban = Column(String, unique=True, index=True)
     est_compte_courant = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id"))
+    date_creation = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="comptes_bancaires")
 

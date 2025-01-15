@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from schemas import UserCreate, CompteBancaireCreate, DepotCreate
 import random
 import string
+from datetime import datetime
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -73,6 +74,7 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
             iban=iban,
             est_compte_courant=est_compte_courant,
             user_id=user_id,
+            date_creation=datetime.utcnow()
         )
 
         db.add(db_compte)
@@ -86,7 +88,6 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
 
 def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
     try:
-        # Vérifier si le compte bancaire existe
         compte = (
             db.query(CompteBancaire)
             .filter(CompteBancaire.id == compte_bancaire_id)
@@ -106,12 +107,6 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         db.refresh(compte)
 
         return db_depot
-
-    except ValueError as ve:
-        raise ValueError(f"Erreur: {ve}")
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise Exception(f"Erreur lors de la création du dépôt: {e}")
 
     except ValueError as ve:
         raise ValueError(f"Erreur: {ve}")

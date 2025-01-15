@@ -171,23 +171,37 @@ def create_depot_endpoint(
     if depot.montant <= 0:
         raise HTTPException(status_code=400, detail="Le montant doit être positif")
 
+    # Recherche du compte bancaire avec l'IBAN fourni
     compte_bancaire = (
         db.query(CompteBancaire)
         .filter(CompteBancaire.user_id == current_user.id)
-        .filter(CompteBancaire.est_compte_courant == True)
+        .filter(CompteBancaire.iban == depot.iban)
         .first()
     )
+    if not compte_bancaire.est_compte_courant and (
+        compte_bancaire.solde + depot.montant > 50000
+    ):
+        compte_bancaire = (
+            db.query(CompteBancaire)
+            .filter(CompteBancaire.user_id == current_user.id)
+            .filter(CompteBancaire.est_compte_courant == True)
+            .first()
+        )
 
     if not compte_bancaire:
-        raise HTTPException(status_code=404, detail="Compte courant non trouvé")
-
+        raise HTTPException(
+            status_code=404,
+            detail=f"Compte bancaire avec IBAN {depot.iban} introuvable",
+        )
     try:
         new_depot = create_depot(
             db=db, depot=depot, compte_bancaire_id=compte_bancaire.id
         )
         return new_depot
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=400, detail=f"Erreur lors de la création du dépôt: {e}"
+        )
 
 
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])

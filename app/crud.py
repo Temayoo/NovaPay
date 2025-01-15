@@ -150,6 +150,7 @@ def get_my_transactions(db: Session, user_id: int):
 
         response.append(
             {
+                "id": transaction.id,
                 "montant": transaction.montant,
                 "description": transaction.description,
                 "compte_envoyeur": compte_envoyeur.iban,
@@ -206,7 +207,7 @@ def create_transaction(db: Session, transaction: TransactionBase):
 def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
-    sleep(10)
+    sleep(50)
     transaction = db.query(Transaction).filter(Transaction.id == transaction.id).first()
     compte_receveur = (
         db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).first()

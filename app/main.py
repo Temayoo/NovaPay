@@ -11,8 +11,7 @@ from schemas import (
     DepotCreate,
     CompteBancaireResponse,
     DepotResponse,
-    TransactionCreate,
-    TransactionBase
+    TransactionBase,
 )
 from crud import (
     create_user,
@@ -63,13 +62,13 @@ def get_db():
 def get_current_user(token: str = Depends(http_bearer), db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise HTTPException(
                 status_code=401, detail="Could not validate credentials"
             )
 
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.email == email).first()
         if user is None:
             raise HTTPException(
                 status_code=401, detail="Could not validate credentials"
@@ -102,10 +101,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", tags=["Authentication"])
 async def login(form_data: UserLogin, db: Session = Depends(get_db)):
+    print(form_data)
     user = get_user_by_username(db, email=form_data.email)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -114,8 +114,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("/comptes-bancaires/",
-          tags=["Bank Account"])
+@app.post("/comptes-bancaires", tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
     db: Session = Depends(get_db),
@@ -150,6 +149,17 @@ def get_comptes_bancaires(
     response_model=list[CompteBancaireResponse],
     tags=["Bank Account"],
 )
+def get_comptes_bancaires(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    comptes = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .filter(CompteBancaire.est_compte_courant == True)
+        .all()
+    )
+    return comptes
+
 
 @app.post("/depot", tags=["Deposits"])
 def create_depot_endpoint(
@@ -180,13 +190,13 @@ def create_depot_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/send", response_model=TransactionResponse, tags=["Transaction"])
+@app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
     db_transaction = create_transaction(db=db, transaction=transaction)
     print(db_transaction.compte_receveur)
     threading.Thread(
         target=asleep_transaction,
-        args=(db, db_transaction, db_transaction.compte_receveur)
+        args=(db, db_transaction, db_transaction.compte_receveur),
     ).start()
 
     return TransactionResponse(
@@ -199,17 +209,25 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
     )
 
 
-@app.get("/transactions/", response_model=list[TransactionResponse], tags=["Transaction"])
-def get_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@app.get(
+    "/transactions", response_model=list[TransactionResponse], tags=["Transaction"]
+)
+def get_transactions(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
     return get_my_transactions(db=db, user_id=current_user.id)
 
 
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
-def cancel_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def cancel_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
     compte_envoyeur = (
         db.query(CompteBancaire)
-        .filter(CompteBancaire.id == transaction.compte_envoyeur)
+        .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
         .first()
     )
 
@@ -229,6 +247,7 @@ def cancel_transaction(transaction_id: int, db: Session = Depends(get_db), curre
     db.refresh(compte_envoyeur)
     db.refresh(transaction)
     return {"message": "Transaction annulée avec succès"}
+
 
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
 def get_depots(

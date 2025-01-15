@@ -167,13 +167,22 @@ def create_transaction(db: Session, transaction: TransactionBase):
     compte_envoyeur = (
         db.query(CompteBancaire)
         .filter(CompteBancaire.iban == transaction.compte_envoyeur)
+        .filter(CompteBancaire.date_deletion == None)
         .first()
     )
+    print(compte_envoyeur)
     compte_receveur = (
         db.query(CompteBancaire)
         .filter(CompteBancaire.iban == transaction.compte_receveur)
+        .filter(CompteBancaire.date_deletion == None)
         .first()
     )
+    print(compte_receveur)
+    if not compte_envoyeur:
+        raise ValueError("Compte source non trouvé")
+    elif not compte_receveur:
+        raise ValueError("Compte de destination non trouvé")
+
     if compte_receveur.est_compte_courant == False and (
         compte_receveur.solde + transaction.montant > 50000
     ):
@@ -189,8 +198,6 @@ def create_transaction(db: Session, transaction: TransactionBase):
             "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
         )
 
-    if not compte_envoyeur or not compte_receveur:
-        raise ValueError("Compte source ou destination non trouvé")
     elif compte_envoyeur.solde < transaction.montant:
         raise ValueError("Solde insuffisant")
     elif compte_envoyeur.id == compte_receveur.id:
@@ -221,7 +228,7 @@ def create_transaction(db: Session, transaction: TransactionBase):
 def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
-    sleep(50)
+    sleep(10)
     transaction = db.query(Transaction).filter(Transaction.id == transaction.id).first()
     compte_receveur = (
         db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).first()

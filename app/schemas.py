@@ -51,6 +51,7 @@ class CompteBancaireCreate(BaseModel):
 
 
 class CompteBancaireResponse(BaseModel):
+    id: int
     nom: str
     iban: str
     solde: Decimal

@@ -1,6 +1,7 @@
 # schemas.py
 from pydantic import BaseModel, root_validator
 from decimal import Decimal
+from datetime import datetime
 
 
 class UserBase(BaseModel):
@@ -49,8 +50,28 @@ class CompteBancaireCreate(BaseModel):
         orm_mode = True
 
 
+class CompteBancaireResponse(BaseModel):
+    nom: str
+    iban: str
+    solde: Decimal
+    date_creation: datetime
+
+    class Config:
+        orm_mode = True
+
+
 class DepotCreate(BaseModel):
     montant: Decimal
+
+    class Config:
+        orm_mode = True
+
+
+class DepotResponse(BaseModel):
+    date: datetime
+    montant: Decimal
+    compte_nom: str
+    compte_iban: str
 
     class Config:
         orm_mode = True

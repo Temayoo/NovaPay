@@ -159,6 +159,7 @@ def get_comptes_bancaires(
         db.query(CompteBancaire)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.est_compte_courant == True)
+        .filter(CompteBancaire.date_deletion == None)
         .all()
     )
     return comptes
@@ -335,10 +336,9 @@ def cloture_compte_courant(
         db.query(CompteBancaire)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.est_compte_courant == True)
+        .filter(CompteBancaire.date_deletion == None)
         .first()
     )
-
-    print(compte_courant)
 
     if not compte_courant:
         raise HTTPException(status_code=404, detail="No current account found")

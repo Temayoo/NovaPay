@@ -92,6 +92,7 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         compte = (
             db.query(CompteBancaire)
             .filter(CompteBancaire.id == compte_bancaire_id)
+            .filter(CompteBancaire.date_deletion == None)
             .first()
         )
         if not compte:
@@ -116,8 +117,11 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
                 db.query(CompteBancaire)
                 .filter(CompteBancaire.user_id == compte.user_id)
                 .filter(CompteBancaire.est_compte_courant == True)
+                .filter(CompteBancaire.date_deletion == None)
                 .first()
             )
+            if not compte_courant:
+                raise ValueError("Compte courant non trouvé")
             return create_depot(
                 db=db,
                 depot=DepotCreate(montant=difference, iban=compte_courant.iban),
@@ -158,6 +162,7 @@ def get_my_transactions(db: Session, user_id: int):
             (Transaction.compte_id_envoyeur == user_id)
             | (Transaction.compte_id_receveur == user_id)
         )
+        .filter(Transaction.date_deletion == None)
         .order_by(Transaction.date_creation.desc())
         .all()
     )
@@ -167,11 +172,13 @@ def get_my_transactions(db: Session, user_id: int):
         compte_envoyeur = (
             db.query(CompteBancaire)
             .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
+            .filter(CompteBancaire.date_deletion == None)
             .first()
         )
         compte_receveur = (
             db.query(CompteBancaire)
             .filter(CompteBancaire.id == transaction.compte_id_receveur)
+            .filter(CompteBancaire.date_deletion == None)
             .first()
         )
 
@@ -238,9 +245,9 @@ def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
     sleep(10)
-    transaction = db.query(Transaction).filter(Transaction.id == transaction.id).first()
+    transaction = db.query(Transaction).filter(Transaction.id == transaction.id).filter(Transaction.date_deletion == None).first()
     compte_receveur = (
-        db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).first()
+        db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).filter(CompteBancaire.date_deletion == None).first()
     )
 
     if transaction is None:
@@ -266,6 +273,7 @@ def asleep_transaction(
                 db.query(CompteBancaire)
                 .filter(CompteBancaire.user_id == compte_receveur.user_id)
                 .filter(CompteBancaire.est_compte_courant == True)
+                .filter(CompteBancaire.date_deletion == None)
                 .first()
             )
             create_transaction(

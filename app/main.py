@@ -259,18 +259,18 @@ def get_transaction_details(transaction_id: int, db: Session = Depends(get_db)):
     return {
         "id": transaction.id,
         "date": transaction.date,
-        "montant": str(transaction.montant), 
+        "montant": str(transaction.montant),
         "description": transaction.description,
         "status": transaction.status,
         "compte_envoyeur": {
             "id": transaction.compte_id_envoyeur,
-            "details": transaction.compte_envoyeur, 
+            "details": transaction.compte_envoyeur,
         },
         "compte_receveur": {
             "id": transaction.compte_id_receveur,
-            "details": transaction.compte_receveur, 
+            "details": transaction.compte_receveur,
+        },
     }
-}
 
 
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])

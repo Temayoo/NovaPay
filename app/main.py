@@ -200,11 +200,12 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
     ).start()
 
     return TransactionResponse(
+        id=db_transaction.id,
         montant=db_transaction.montant,
         description=db_transaction.description,
         compte_envoyeur=db_transaction.compte_envoyeur.iban,
         compte_receveur=db_transaction.compte_receveur.iban,
-        date=db_transaction.date,
+        date_creation=db_transaction.date_creation,
         status=db_transaction.status,
     )
 

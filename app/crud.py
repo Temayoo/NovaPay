@@ -131,7 +131,7 @@ def get_my_transactions(db: Session, user_id: int):
             (Transaction.compte_id_envoyeur == user_id)
             | (Transaction.compte_id_receveur == user_id)
         )
-        .order_by(Transaction.date.desc())
+        .order_by(Transaction.date_creation.desc())
         .all()
     )
 

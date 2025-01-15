@@ -3,7 +3,14 @@ from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, CompteBancaire, Depot
-from schemas import UserCreate, UserBase, CompteBancaireCreate, DepotCreate, CompteBancaireResponse, DepotResponse
+from schemas import (
+    UserCreate,
+    UserBase,
+    CompteBancaireCreate,
+    DepotCreate,
+    CompteBancaireResponse,
+    DepotResponse,
+)
 from crud import (
     create_user,
     get_user_by_username,
@@ -65,6 +72,7 @@ def get_current_user(token: str = Depends(http_bearer), db: Session = Depends(ge
     except JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
+
 @app.post("/register", response_model=UserBase, tags=["Authentication"])
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
@@ -100,7 +108,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@app.post("/comptes-bancaires/",  tags=["Bank Account"])
+@app.post("/comptes-bancaires/", tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
     db: Session = Depends(get_db),
@@ -112,7 +120,12 @@ def create_compte(
 
     return create_compte_bancaire(db=db, compte=compte, user_id=current_user.id)
 
-@app.get("/comptes-bancaires", response_model=list[CompteBancaireResponse], tags=["Bank Account"])
+
+@app.get(
+    "/comptes-bancaires",
+    response_model=list[CompteBancaireResponse],
+    tags=["Bank Account"],
+)
 def get_comptes_bancaires(
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
@@ -124,7 +137,12 @@ def get_comptes_bancaires(
     )
     return comptes
 
-@app.get("/compte-courant", response_model=list[CompteBancaireResponse], tags=["Bank Account"])
+
+@app.get(
+    "/compte-courant",
+    response_model=list[CompteBancaireResponse],
+    tags=["Bank Account"],
+)
 def get_comptes_bancaires(
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
@@ -136,9 +154,12 @@ def get_comptes_bancaires(
     )
     return comptes
 
+
 @app.post("/depot", tags=["Deposits"])
 def create_depot_endpoint(
-    depot: DepotCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    depot: DepotCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
 
     if depot.montant <= 0:
@@ -155,7 +176,9 @@ def create_depot_endpoint(
         raise HTTPException(status_code=404, detail="Compte courant non trouvé")
 
     try:
-        new_depot = create_depot(db=db, depot=depot, compte_bancaire_id=compte_bancaire.id)
+        new_depot = create_depot(
+            db=db, depot=depot, compte_bancaire_id=compte_bancaire.id
+        )
         return new_depot
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -163,8 +186,7 @@ def create_depot_endpoint(
 
 @app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
 def get_depots(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     depots = (
         db.query(Depot)
@@ -178,7 +200,7 @@ def get_depots(
             date=depot.date,
             montant=depot.montant,
             compte_nom=depot.compte_bancaire.nom,
-            compte_iban=depot.compte_bancaire.iban
+            compte_iban=depot.compte_bancaire.iban,
         )
         for depot in depots
     ]

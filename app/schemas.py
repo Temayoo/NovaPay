@@ -49,6 +49,7 @@ class CompteBancaireCreate(BaseModel):
     class Config:
         orm_mode = True
 
+
 class CompteBancaireResponse(BaseModel):
     nom: str
     iban: str
@@ -65,6 +66,7 @@ class DepotCreate(BaseModel):
     class Config:
         orm_mode = True
 
+
 class DepotResponse(BaseModel):
     date: datetime
     montant: Decimal
@@ -73,5 +75,3 @@ class DepotResponse(BaseModel):
 
     class Config:
         orm_mode = True
-
-

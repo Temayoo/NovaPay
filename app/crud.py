@@ -74,7 +74,7 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
             iban=iban,
             est_compte_courant=est_compte_courant,
             user_id=user_id,
-            date_creation=datetime.utcnow()
+            date_creation=datetime.utcnow(),
         )
 
         db.add(db_compte)

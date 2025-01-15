@@ -185,7 +185,9 @@ def create_transaction(db: Session, transaction: TransactionBase):
             )
             .first()
         )
-        print("Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000.")
+        print(
+            "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
+        )
 
     if not compte_envoyeur or not compte_receveur:
         raise ValueError("Compte source ou destination non trouvé")

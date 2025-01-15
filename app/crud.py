@@ -107,6 +107,27 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         db.commit()
         db.refresh(compte)
 
+        difference = check_account_limit(compte)
+        if difference > 0:
+            compte_courant = (
+                db.query(CompteBancaire)
+                .filter(CompteBancaire.user_id == compte.user_id)
+                .filter(CompteBancaire.est_compte_courant == True)
+                .first()
+            )
+            print(compte_courant)
+            create_transaction(
+                db=db,
+                transaction=TransactionBase(
+                    montant=difference,
+                    description="Limite de compte dépassée",
+                    compte_envoyeur=compte.iban,
+                    compte_receveur=compte_courant.iban,
+                ),
+            )
+            compte_courant.solde += difference
+            db.commit()
+            db.refresh(compte_courant)
         return db_depot
 
     except ValueError as ve:
@@ -170,34 +191,16 @@ def create_transaction(db: Session, transaction: TransactionBase):
         .filter(CompteBancaire.date_deletion == None)
         .first()
     )
-    print(compte_envoyeur)
     compte_receveur = (
         db.query(CompteBancaire)
         .filter(CompteBancaire.iban == transaction.compte_receveur)
         .filter(CompteBancaire.date_deletion == None)
         .first()
     )
-    print(compte_receveur)
     if not compte_envoyeur:
         raise ValueError("Compte source non trouvé")
     elif not compte_receveur:
         raise ValueError("Compte de destination non trouvé")
-
-    if compte_receveur.est_compte_courant == False and (
-        compte_receveur.solde + transaction.montant > 50000
-    ):
-        compte_receveur = (
-            db.query(CompteBancaire)
-            .filter(
-                CompteBancaire.user_id == compte_receveur.user_id,
-                CompteBancaire.est_compte_courant == True,
-            )
-            .first()
-        )
-        print(
-            "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
-        )
-
     elif compte_envoyeur.solde < transaction.montant:
         raise ValueError("Solde insuffisant")
     elif compte_envoyeur.id == compte_receveur.id:
@@ -248,3 +251,33 @@ def asleep_transaction(
         db.commit()
         db.refresh(compte_receveur)
         db.refresh(transaction)
+
+        difference = check_account_limit(compte_receveur)
+        if difference > 0:
+            print(
+            "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
+            )
+            compte_courant = (
+                db.query(CompteBancaire)
+                .filter(CompteBancaire.user_id == compte_receveur.user_id)
+                .filter(CompteBancaire.est_compte_courant == True)
+                .first()
+            )
+            create_transaction(
+                db=db,
+                transaction=TransactionBase(
+                    montant=difference,
+                    description="Limite de compte dépassée",
+                    compte_envoyeur=compte_receveur.iban,
+                    compte_receveur=compte_courant.iban,
+                ),
+            )
+            compte_courant.solde += difference
+            db.commit()
+            db.refresh(compte_courant)
+
+def check_account_limit(compte_bancaire: CompteBancaire):
+    if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:
+        return compte_bancaire.solde - 50000
+    return 0
+

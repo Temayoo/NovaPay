@@ -187,15 +187,6 @@ def create_depot_endpoint(
             status_code=404,
             detail=f"Compte bancaire avec IBAN {depot.iban} introuvable",
         )
-    if not compte_bancaire.est_compte_courant and (
-        compte_bancaire.solde + depot.montant > 50000
-    ):
-        compte_bancaire = (
-            db.query(CompteBancaire)
-            .filter(CompteBancaire.user_id == current_user.id)
-            .filter(CompteBancaire.est_compte_courant == True)
-            .first()
-        )
 
     if not compte_bancaire:
         raise HTTPException(

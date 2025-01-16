@@ -122,7 +122,10 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
             db.commit()
             db.refresh(compte)
 
-            db_depot = Depot(montant=depot.montant - difference, compte_bancaire_id=compte_bancaire_id)
+            db_depot = Depot(
+                montant=depot.montant - difference,
+                compte_bancaire_id=compte_bancaire_id,
+            )
             db.add(db_depot)
             db.commit()
             db.refresh(db_depot)
@@ -142,7 +145,7 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
                 depot=DepotCreate(montant=difference, iban=compte_courant.iban),
                 compte_bancaire_id=compte_courant.id,
             )
-        
+
         compte.solde += depot.montant
         db.commit()
         db.refresh(compte)
@@ -164,7 +167,12 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
 # ===========================
 # Transaction Management Functions
 # ===========================
-def create_transaction(db: Session, transaction: TransactionBase, compte_envoyeur: CompteBancaire, compte_receveur: CompteBancaire):
+def create_transaction(
+    db: Session,
+    transaction: TransactionBase,
+    compte_envoyeur: CompteBancaire,
+    compte_receveur: CompteBancaire,
+):
 
     compte_envoyeur.solde -= transaction.montant
 
@@ -183,7 +191,7 @@ def create_transaction(db: Session, transaction: TransactionBase, compte_envoyeu
 
 
 def get_my_transactions(db: Session, compte_id: int):
-    
+
     transactions = (
         db.query(Transaction)
         .filter(
@@ -229,9 +237,17 @@ def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
     sleep(50)
-    transaction = db.query(Transaction).filter(Transaction.id == transaction.id).filter(Transaction.date_deletion == None).first()
+    transaction = (
+        db.query(Transaction)
+        .filter(Transaction.id == transaction.id)
+        .filter(Transaction.date_deletion == None)
+        .first()
+    )
     compte_receveur = (
-        db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).filter(CompteBancaire.date_deletion == None).first()
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == compte_receveur.id)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
     )
 
     if transaction is None:
@@ -251,7 +267,7 @@ def asleep_transaction(
         difference = check_account_limit(compte_receveur)
         if difference > 0:
             print(
-            "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
+                "Avertissement: Le compte receveur a été changé car il ne doit pas dépasser 50 000."
             )
             compte_courant = (
                 db.query(CompteBancaire)
@@ -275,4 +291,3 @@ def check_account_limit(compte_bancaire: CompteBancaire):
     if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:
         return compte_bancaire.solde - 50000
     return 0
-

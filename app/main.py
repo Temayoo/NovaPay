@@ -174,6 +174,7 @@ def get_comptes_bancaires(
     )
     return comptes
 
+
 @app.patch("/compte-bancaire/cloture/{id_compte}", tags=["Bank Account"])
 def cloture_compte_bancaire(
     id_compte: int,
@@ -195,7 +196,9 @@ def cloture_compte_bancaire(
     )
 
     if transactions:
-        raise HTTPException(status_code=400, detail="Ce compte contient des transactions en cours")
+        raise HTTPException(
+            status_code=400, detail="Ce compte contient des transactions en cours"
+        )
     if not compte:
         raise HTTPException(status_code=404, detail="Compte non trouvé")
     if compte.user_id != current_user.id:
@@ -231,6 +234,7 @@ def cloture_compte_bancaire(
 
     return compte
 
+
 # ===========================
 # Deposit Features
 # ===========================
@@ -257,6 +261,7 @@ def get_depots(
     ]
 
     return depots_response
+
 
 @app.post("/depot", tags=["Deposits"])
 def create_depot_endpoint(
@@ -302,7 +307,11 @@ def create_depot_endpoint(
 # Transaction Features
 # ===========================
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
-def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def send_transaction(
+    transaction: TransactionBase,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     compte_envoyeur = (
         db.query(CompteBancaire)
         .filter(CompteBancaire.iban == transaction.compte_envoyeur)
@@ -318,8 +327,8 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
 
     if compte_envoyeur.user_id != current_user.id:
         raise HTTPException(
-            status_code=403, 
-            detail="Vous n'avez pas les permissions nécessaires pour effectuer cette transaction"
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour effectuer cette transaction",
         )
     if not compte_envoyeur:
         raise HTTPException(
@@ -346,7 +355,12 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
             status_code=400,
             detail="Le montant de la transaction ne peut pas être inférieur ou égal à 0",
         )
-    db_transaction = create_transaction(db=db, transaction=transaction, compte_envoyeur=compte_envoyeur, compte_receveur=compte_receveur)
+    db_transaction = create_transaction(
+        db=db,
+        transaction=transaction,
+        compte_envoyeur=compte_envoyeur,
+        compte_receveur=compte_receveur,
+    )
     threading.Thread(
         target=asleep_transaction,
         args=(db, db_transaction, db_transaction.compte_receveur),
@@ -361,6 +375,7 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
         date_creation=db_transaction.date_creation,
         status=db_transaction.status,
     )
+
 
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
 def cancel_transaction(
@@ -393,22 +408,40 @@ def cancel_transaction(
     return {"message": "Transaction annulée avec succès"}
 
 
+@app.get(
+    "/{compte_id}/transactions",
+    response_model=list[TransactionResponse],
+    tags=["Transaction"],
+)
+def get_transactions(
+    compte_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
 
-@app.get("/{compte_id}/transactions", response_model=list[TransactionResponse], tags=["Transaction"])
-def get_transactions(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-
-    compte = db.query(CompteBancaire).filter(CompteBancaire.id == compte_id).filter(CompteBancaire.date_deletion == None).first()
+    compte = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == compte_id)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
     if not compte:
         raise HTTPException(status_code=404, detail="Compte bancaire introuvable")
     if compte.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour accéder à ces transactions")
-    
+        raise HTTPException(
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour accéder à ces transactions",
+        )
+
     return get_my_transactions(db=db, compte_id=compte_id)
 
 
-
 @app.get("/transactions/{transaction_id}", tags=["Transaction"])
-def get_transaction_details(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_transaction_details(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     transaction = (
         db.query(Transaction)
         .filter(Transaction.id == transaction_id)
@@ -432,8 +465,14 @@ def get_transaction_details(transaction_id: int, db: Session = Depends(get_db), 
         .first()
     )
 
-    if compte_envoyeur.user_id != current_user.id and compte_receveur.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour accéder à cette transaction")
+    if (
+        compte_envoyeur.user_id != current_user.id
+        and compte_receveur.user_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour accéder à cette transaction",
+        )
 
     return {
         "id": transaction.id,

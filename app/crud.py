@@ -74,7 +74,7 @@ def create_premier_compte_bancaire(
         db.refresh(db_compte)
         return db_compte
     except Exception as e:
-        print(f"Error during account creation: {e}")
+        print(f"Erreur lors de la création du compte: {e}")
         raise
 
 
@@ -98,7 +98,7 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
         db.refresh(db_compte)
         return db_compte
     except Exception as e:
-        print(f"Error during account creation: {e}")
+        print(f"Erreur lors de la création du compte: {e}")
         raise
 
 
@@ -116,7 +116,6 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
 
         # Vérifie si le dépôt dépasse la limite de 50 000
         difference = compte.solde + depot.montant - 50000
-        print(f"Différence: {difference}")
         if difference > 0 and not compte.est_compte_courant:
             # Gérer le dépôt pour le compte secondaire
             compte.solde += depot.montant - difference
@@ -262,7 +261,7 @@ def asleep_transaction(
     )
 
     if transaction is None:
-        print("Transaction not found.")
+        print("Transaction introuvable.")
         return
 
     if transaction.status == 2:

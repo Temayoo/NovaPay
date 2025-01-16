@@ -110,7 +110,6 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", tags=["Authentication"])
 async def login(form_data: UserLogin, db: Session = Depends(get_db)):
-    print(form_data)
     user = get_user_by_username(db, email=form_data.email)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")

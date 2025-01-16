@@ -97,7 +97,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
     create_depot(
         db=db,
-        depot=DepotCreate(montant=100, iban=compte_courant.iban),
+        depot=DepotCreate(
+            montant=100,
+            iban=compte_courant.iban,
+            description="Dépôt initial",
+        ),
         compte_bancaire_id=compte_courant.id,
     )
 
@@ -170,22 +174,36 @@ def get_comptes_bancaires(
     )
     return comptes
 
-@app.patch("/compte-courant/cloture/{id_compte_courant}", tags=["Bank Account"])
-def cloture_compte_courant(
-    id_compte_courant: int,
+@app.patch("/compte-bancaire/cloture/{id_compte}", tags=["Bank Account"])
+def cloture_compte_bancaire(
+    id_compte: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    compte = db.query(CompteBancaire).get(id_compte_courant)
+    compte = db.query(CompteBancaire).get(id_compte)
 
+    # Récupération des transactions en cours
+    transactions = (
+        db.query(Transaction)
+        .filter(
+            (Transaction.compte_id_envoyeur == id_compte)
+            | (Transaction.compte_id_receveur == id_compte)
+        )
+        .filter(Transaction.date_deletion == None)
+        .filter(Transaction.status == 0)
+        .all()
+    )
+
+    if transactions:
+        raise HTTPException(status_code=400, detail="Ce compte contient des transactions en cours")
     if not compte:
-        raise HTTPException(status_code=404, detail="Compte not found")
+        raise HTTPException(status_code=404, detail="Compte non trouvé")
     if compte.user_id != current_user.id:
         raise HTTPException(
-            status_code=403, detail="You are not the owner of this account"
+            status_code=403, detail="Vous n'êtes pas le propriétaire de ce compte"
         )
     if compte.est_compte_courant:
-        raise HTTPException(status_code=400, detail="This account is a current account")
+        raise HTTPException(status_code=400, detail="Ce compte est un compte courant")
 
     compte_courant = (
         db.query(CompteBancaire)
@@ -196,7 +214,7 @@ def cloture_compte_courant(
     )
 
     if not compte_courant:
-        raise HTTPException(status_code=404, detail="No current account found")
+        raise HTTPException(status_code=404, detail="Aucun compte courant trouvé")
 
     compte_courant.solde += compte.solde
 
@@ -231,6 +249,7 @@ def get_depots(
         DepotResponse(
             date=depot.date,
             montant=depot.montant,
+            description=depot.description,
             compte_nom=depot.compte_bancaire.nom,
             compte_iban=depot.compte_bancaire.iban,
         )
@@ -283,8 +302,51 @@ def create_depot_endpoint(
 # Transaction Features
 # ===========================
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
-def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
-    db_transaction = create_transaction(db=db, transaction=transaction)
+def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    compte_envoyeur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.iban == transaction.compte_envoyeur)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+    compte_receveur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.iban == transaction.compte_receveur)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+
+    if compte_envoyeur.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, 
+            detail="Vous n'avez pas les permissions nécessaires pour effectuer cette transaction"
+        )
+    if not compte_envoyeur:
+        raise HTTPException(
+            status_code=400,
+            detail="Compte source non trouvé",
+        )
+    elif not compte_receveur:
+        raise HTTPException(
+            status_code=400,
+            detail="Compte de destination non trouvé",
+        )
+    elif compte_envoyeur.solde < transaction.montant:
+        raise HTTPException(
+            status_code=400,
+            detail="Solde insuffisant",
+        )
+    elif compte_envoyeur.id == compte_receveur.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Le compte envoyeur et le compte receveur ne peuvent pas être identiques",
+        )
+    elif transaction.montant <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Le montant de la transaction ne peut pas être inférieur ou égal à 0",
+        )
+    db_transaction = create_transaction(db=db, transaction=transaction, compte_envoyeur=compte_envoyeur, compte_receveur=compte_receveur)
     threading.Thread(
         target=asleep_transaction,
         args=(db, db_transaction, db_transaction.compte_receveur),
@@ -299,16 +361,6 @@ def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)
         date_creation=db_transaction.date_creation,
         status=db_transaction.status,
     )
-
-
-@app.get(
-    "/transactions", response_model=list[TransactionResponse], tags=["Transaction"]
-)
-def get_transactions(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
-):
-    return get_my_transactions(db=db, user_id=current_user.id)
-
 
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
 def cancel_transaction(
@@ -335,15 +387,28 @@ def cancel_transaction(
 
     compte_envoyeur.solde += transaction.montant
     transaction.status = 2
-    transaction.date_deletion = datetime.utcnow()
     db.commit()
     db.refresh(compte_envoyeur)
     db.refresh(transaction)
     return {"message": "Transaction annulée avec succès"}
 
 
+
+@app.get("/{compte_id}/transactions", response_model=list[TransactionResponse], tags=["Transaction"])
+def get_transactions(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+    compte = db.query(CompteBancaire).filter(CompteBancaire.id == compte_id).filter(CompteBancaire.date_deletion == None).first()
+    if not compte:
+        raise HTTPException(status_code=404, detail="Compte bancaire introuvable")
+    if compte.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour accéder à ces transactions")
+    
+    return get_my_transactions(db=db, compte_id=compte_id)
+
+
+
 @app.get("/transactions/{transaction_id}", tags=["Transaction"])
-def get_transaction_details(transaction_id: int, db: Session = Depends(get_db)):
+def get_transaction_details(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     transaction = (
         db.query(Transaction)
         .filter(Transaction.id == transaction_id)
@@ -353,16 +418,29 @@ def get_transaction_details(transaction_id: int, db: Session = Depends(get_db)):
 
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction introuvable")
+
+    compte_envoyeur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+    compte_receveur = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == transaction.compte_id_receveur)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+
+    if compte_envoyeur.user_id != current_user.id and compte_receveur.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour accéder à cette transaction")
+
     return {
         "id": transaction.id,
-        "date": transaction.date_creation,
-        "montant": str(transaction.montant),
+        "montant": transaction.montant,
         "description": transaction.description,
+        "compte_envoyeur": compte_envoyeur.iban,
+        "compte_receveur": compte_receveur.iban,
+        "date_creation": transaction.date_creation,
         "status": transaction.status,
-        "compte_envoyeur": {
-            "details": transaction.compte_envoyeur,
-        },
-        "compte_receveur": {
-            "details": transaction.compte_receveur,
-        },
     }

@@ -164,33 +164,7 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
 # ===========================
 # Transaction Management Functions
 # ===========================
-def create_transaction(db: Session, transaction: TransactionBase):
-    compte_envoyeur = (
-        db.query(CompteBancaire)
-        .filter(CompteBancaire.iban == transaction.compte_envoyeur)
-        .filter(CompteBancaire.date_deletion == None)
-        .first()
-    )
-    compte_receveur = (
-        db.query(CompteBancaire)
-        .filter(CompteBancaire.iban == transaction.compte_receveur)
-        .filter(CompteBancaire.date_deletion == None)
-        .first()
-    )
-    if not compte_envoyeur:
-        raise ValueError("Compte source non trouvé")
-    elif not compte_receveur:
-        raise ValueError("Compte de destination non trouvé")
-    elif compte_envoyeur.solde < transaction.montant:
-        raise ValueError("Solde insuffisant")
-    elif compte_envoyeur.id == compte_receveur.id:
-        raise ValueError(
-            "Le compte envoyeur et le compte receveur ne peuvent pas être identiques"
-        )
-    elif transaction.montant <= 0:
-        raise ValueError(
-            "Le montant de la transaction ne peut pas être inférieur ou égal à 0"
-        )
+def create_transaction(db: Session, transaction: TransactionBase, compte_envoyeur: CompteBancaire, compte_receveur: CompteBancaire):
 
     compte_envoyeur.solde -= transaction.montant
 
@@ -208,12 +182,13 @@ def create_transaction(db: Session, transaction: TransactionBase):
     return db_transaction
 
 
-def get_my_transactions(db: Session, user_id: int):
+def get_my_transactions(db: Session, compte_id: int):
+    
     transactions = (
         db.query(Transaction)
         .filter(
-            (Transaction.compte_id_envoyeur == user_id)
-            | (Transaction.compte_id_receveur == user_id)
+            (Transaction.compte_id_envoyeur == compte_id)
+            | (Transaction.compte_id_receveur == compte_id)
         )
         .filter(Transaction.date_deletion == None)
         .order_by(Transaction.date_creation.desc())
@@ -253,7 +228,7 @@ def get_my_transactions(db: Session, user_id: int):
 def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
-    sleep(10)
+    sleep(50)
     transaction = db.query(Transaction).filter(Transaction.id == transaction.id).filter(Transaction.date_deletion == None).first()
     compte_receveur = (
         db.query(CompteBancaire).filter(CompteBancaire.id == compte_receveur.id).filter(CompteBancaire.date_deletion == None).first()

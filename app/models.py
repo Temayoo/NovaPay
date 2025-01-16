@@ -58,6 +58,7 @@ class Depot(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     montant = Column(Numeric(precision=10, scale=2))
+    description = Column(String)
     date = Column(DateTime, default=datetime.utcnow)
     compte_bancaire_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
     date_creation = Column(DateTime, default=datetime.utcnow)

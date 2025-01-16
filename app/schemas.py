@@ -63,6 +63,7 @@ class CompteBancaireResponse(BaseModel):
 
 class DepotCreate(BaseModel):
     montant: Decimal
+    description: str
     iban: str
 
     class Config:
@@ -72,6 +73,7 @@ class DepotCreate(BaseModel):
 class DepotResponse(BaseModel):
     date: datetime
     montant: Decimal
+    description: str
     compte_nom: str
     compte_iban: str
 

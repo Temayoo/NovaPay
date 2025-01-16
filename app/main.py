@@ -175,7 +175,7 @@ def get_comptes_bancaires(
     return comptes
 
 
-@app.patch("/compte-bancaire/cloture/{id_compte}", tags=["Bank Account"])
+@app.patch("/comptes-bancaires/cloture/{id_compte}", tags=["Bank Account"])
 def cloture_compte_bancaire(
     id_compte: int,
     db: Session = Depends(get_db),
@@ -281,11 +281,6 @@ def create_depot_endpoint(
         .filter(CompteBancaire.date_deletion == None)
         .first()
     )
-    if not compte_bancaire:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Compte bancaire avec IBAN {depot.iban} introuvable",
-        )
 
     if not compte_bancaire:
         raise HTTPException(

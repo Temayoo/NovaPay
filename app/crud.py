@@ -116,14 +116,17 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
 
         # Vérifie si le dépôt dépasse la limite de 50 000
         difference = compte.solde + depot.montant - 50000
+        print(f"Différence: {difference}")
         if difference > 0 and not compte.est_compte_courant:
             # Gérer le dépôt pour le compte secondaire
             compte.solde += depot.montant - difference
+            db.add(compte)
             db.commit()
             db.refresh(compte)
 
             db_depot = Depot(
                 montant=depot.montant - difference,
+                description=depot.description,
                 compte_bancaire_id=compte_bancaire_id,
             )
             db.add(db_depot)
@@ -142,7 +145,11 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
                 raise ValueError("Compte courant non trouvé")
             return create_depot(
                 db=db,
-                depot=DepotCreate(montant=difference, iban=compte_courant.iban),
+                depot=DepotCreate(
+                    montant=difference,
+                    description=depot.description,
+                    iban=compte_courant.iban,
+                ),
                 compte_bancaire_id=compte_courant.id,
             )
 
@@ -150,7 +157,11 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         db.commit()
         db.refresh(compte)
 
-        db_depot = Depot(montant=depot.montant, compte_bancaire_id=compte_bancaire_id)
+        db_depot = Depot(
+            montant=depot.montant,
+            description=depot.description,
+            compte_bancaire_id=compte_bancaire_id,
+        )
         db.add(db_depot)
         db.commit()
         db.refresh(db_depot)
@@ -276,6 +287,10 @@ def asleep_transaction(
                 .filter(CompteBancaire.date_deletion == None)
                 .first()
             )
+            compte_courant.solde += difference
+            db.commit()
+            db.refresh(compte_courant)
+
             create_transaction(
                 db=db,
                 transaction=TransactionBase(
@@ -284,6 +299,8 @@ def asleep_transaction(
                     compte_envoyeur=compte_receveur.iban,
                     compte_receveur=compte_courant.iban,
                 ),
+                compte_envoyeur=compte_receveur,
+                compte_receveur=compte_courant,
             )
 
 

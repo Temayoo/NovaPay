@@ -78,6 +78,9 @@ def get_current_user(token: str = Depends(http_bearer), db: Session = Depends(ge
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
+# ===========================
+# Authentication Features
+# ===========================
 @app.post("/register", response_model=UserBase, tags=["Authentication"])
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
@@ -116,6 +119,9 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+# ===========================
+# Bank Account Features
+# ===========================
 @app.post("/comptes-bancaires", tags=["Bank Account"])
 def create_compte(
     compte: CompteBancaireCreate,
@@ -164,6 +170,74 @@ def get_comptes_bancaires(
     )
     return comptes
 
+@app.patch("/compte-courant/cloture/{id_compte_courant}", tags=["Bank Account"])
+def cloture_compte_courant(
+    id_compte_courant: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    compte = db.query(CompteBancaire).get(id_compte_courant)
+
+    if not compte:
+        raise HTTPException(status_code=404, detail="Compte not found")
+    if compte.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="You are not the owner of this account"
+        )
+    if compte.est_compte_courant:
+        raise HTTPException(status_code=400, detail="This account is a current account")
+
+    compte_courant = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .filter(CompteBancaire.est_compte_courant == True)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+
+    if not compte_courant:
+        raise HTTPException(status_code=404, detail="No current account found")
+
+    compte_courant.solde += compte.solde
+
+    compte.solde = 0
+    compte.date_deletion = datetime.utcnow()
+
+    db.add(compte)
+    db.add(compte_courant)
+
+    db.commit()
+
+    db.refresh(compte)
+    db.refresh(compte_courant)
+
+    return compte
+
+# ===========================
+# Deposit Features
+# ===========================
+@app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
+def get_depots(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    depots = (
+        db.query(Depot)
+        .join(CompteBancaire)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .all()
+    )
+
+    depots_response = [
+        DepotResponse(
+            date=depot.date,
+            montant=depot.montant,
+            compte_nom=depot.compte_bancaire.nom,
+            compte_iban=depot.compte_bancaire.iban,
+        )
+        for depot in depots
+    ]
+
+    return depots_response
 
 @app.post("/depot", tags=["Deposits"])
 def create_depot_endpoint(
@@ -205,6 +279,9 @@ def create_depot_endpoint(
         )
 
 
+# ===========================
+# Transaction Features
+# ===========================
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(transaction: TransactionBase, db: Session = Depends(get_db)):
     db_transaction = create_transaction(db=db, transaction=transaction)
@@ -289,71 +366,3 @@ def get_transaction_details(transaction_id: int, db: Session = Depends(get_db)):
             "details": transaction.compte_receveur,
         },
     }
-
-
-@app.get("/depots", response_model=list[DepotResponse], tags=["Deposits"])
-def get_depots(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
-):
-    depots = (
-        db.query(Depot)
-        .join(CompteBancaire)
-        .filter(CompteBancaire.user_id == current_user.id)
-        .all()
-    )
-
-    depots_response = [
-        DepotResponse(
-            date=depot.date,
-            montant=depot.montant,
-            compte_nom=depot.compte_bancaire.nom,
-            compte_iban=depot.compte_bancaire.iban,
-        )
-        for depot in depots
-    ]
-
-    return depots_response
-
-
-@app.patch("/compte-courant/cloture/{id_compte_courant}", tags=["Bank Account"])
-def cloture_compte_courant(
-    id_compte_courant: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    compte = db.query(CompteBancaire).get(id_compte_courant)
-
-    if not compte:
-        raise HTTPException(status_code=404, detail="Compte not found")
-    if compte.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="You are not the owner of this account"
-        )
-    if compte.est_compte_courant:
-        raise HTTPException(status_code=400, detail="This account is a current account")
-
-    compte_courant = (
-        db.query(CompteBancaire)
-        .filter(CompteBancaire.user_id == current_user.id)
-        .filter(CompteBancaire.est_compte_courant == True)
-        .filter(CompteBancaire.date_deletion == None)
-        .first()
-    )
-
-    if not compte_courant:
-        raise HTTPException(status_code=404, detail="No current account found")
-
-    compte_courant.solde += compte.solde
-
-    compte.solde = 0
-    compte.date_deletion = datetime.utcnow()
-
-    db.add(compte)
-    db.add(compte_courant)
-
-    db.commit()
-
-    db.refresh(compte)
-    db.refresh(compte_courant)
-
-    return compte

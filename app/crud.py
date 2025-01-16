@@ -21,7 +21,11 @@ def verify_password(plain_password, hashed_password) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+# ===========================
+# User Management Functions
+# ===========================
 def create_user(db: Session, user: UserCreate):
+    # Crée un nouvel utilisateur dans la base de données
     db_user = User(
         username=user.username,
         email=user.email,
@@ -37,6 +41,17 @@ def generate_iban() -> str:
     return "FR" + "".join(random.choices(string.digits, k=20))
 
 
+def get_user_by_username(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
+
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
+
+
+# ===========================
+# Bank Account Management Functions
+# ===========================
 def create_premier_compte_bancaire(
     db: Session, compte: CompteBancaireCreate, user_id: int
 ):
@@ -88,6 +103,7 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
 
 
 def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
+    # Crée un dépôt dans un compte bancaire
     try:
         compte = (
             db.query(CompteBancaire)
@@ -98,21 +114,20 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         if not compte:
             raise ValueError("Compte bancaire non trouvé")
 
+        # Vérifie si le dépôt dépasse la limite de 50 000
         difference = compte.solde + depot.montant - 50000
-
         if difference > 0 and not compte.est_compte_courant:
-            # On ajoute le montant maximum possible au compte secondaire
+            # Gérer le dépôt pour le compte secondaire
             compte.solde += depot.montant - difference
             db.commit()
             db.refresh(compte)
 
             db_depot = Depot(montant=depot.montant - difference, compte_bancaire_id=compte_bancaire_id)
-
             db.add(db_depot)
             db.commit()
             db.refresh(db_depot)
-            
-            # On crée un nouveau dépôt pour le compte courant afin d'ajouter le reste du montant
+
+            # Crée un nouveau dépôt pour le compte courant
             compte_courant = (
                 db.query(CompteBancaire)
                 .filter(CompteBancaire.user_id == compte.user_id)
@@ -133,7 +148,6 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         db.refresh(compte)
 
         db_depot = Depot(montant=depot.montant, compte_bancaire_id=compte_bancaire_id)
-
         db.add(db_depot)
         db.commit()
         db.refresh(db_depot)
@@ -147,56 +161,9 @@ def create_depot(db: Session, depot: DepotCreate, compte_bancaire_id: int):
         raise Exception(f"Erreur lors de la création du dépôt: {e}")
 
 
-def get_user_by_username(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
-
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
-
-
-def get_my_transactions(db: Session, user_id: int):
-    transactions = (
-        db.query(Transaction)
-        .filter(
-            (Transaction.compte_id_envoyeur == user_id)
-            | (Transaction.compte_id_receveur == user_id)
-        )
-        .filter(Transaction.date_deletion == None)
-        .order_by(Transaction.date_creation.desc())
-        .all()
-    )
-
-    response = []
-    for transaction in transactions:
-        compte_envoyeur = (
-            db.query(CompteBancaire)
-            .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
-            .filter(CompteBancaire.date_deletion == None)
-            .first()
-        )
-        compte_receveur = (
-            db.query(CompteBancaire)
-            .filter(CompteBancaire.id == transaction.compte_id_receveur)
-            .filter(CompteBancaire.date_deletion == None)
-            .first()
-        )
-
-        response.append(
-            {
-                "id": transaction.id,
-                "montant": transaction.montant,
-                "description": transaction.description,
-                "compte_envoyeur": compte_envoyeur.iban,
-                "compte_receveur": compte_receveur.iban,
-                "date_creation": transaction.date_creation,
-                "status": transaction.status,
-            }
-        )
-
-    return response
-
-
+# ===========================
+# Transaction Management Functions
+# ===========================
 def create_transaction(db: Session, transaction: TransactionBase):
     compte_envoyeur = (
         db.query(CompteBancaire)
@@ -239,6 +206,48 @@ def create_transaction(db: Session, transaction: TransactionBase):
     db.refresh(db_transaction)
 
     return db_transaction
+
+
+def get_my_transactions(db: Session, user_id: int):
+    transactions = (
+        db.query(Transaction)
+        .filter(
+            (Transaction.compte_id_envoyeur == user_id)
+            | (Transaction.compte_id_receveur == user_id)
+        )
+        .filter(Transaction.date_deletion == None)
+        .order_by(Transaction.date_creation.desc())
+        .all()
+    )
+
+    response = []
+    for transaction in transactions:
+        compte_envoyeur = (
+            db.query(CompteBancaire)
+            .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
+            .filter(CompteBancaire.date_deletion == None)
+            .first()
+        )
+        compte_receveur = (
+            db.query(CompteBancaire)
+            .filter(CompteBancaire.id == transaction.compte_id_receveur)
+            .filter(CompteBancaire.date_deletion == None)
+            .first()
+        )
+
+        response.append(
+            {
+                "id": transaction.id,
+                "montant": transaction.montant,
+                "description": transaction.description,
+                "compte_envoyeur": compte_envoyeur.iban,
+                "compte_receveur": compte_receveur.iban,
+                "date_creation": transaction.date_creation,
+                "status": transaction.status,
+            }
+        )
+
+    return response
 
 
 def asleep_transaction(
@@ -285,6 +294,8 @@ def asleep_transaction(
                     compte_receveur=compte_courant.iban,
                 ),
             )
+
+
 def check_account_limit(compte_bancaire: CompteBancaire):
     if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:
         return compte_bancaire.solde - 50000

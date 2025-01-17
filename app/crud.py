@@ -182,6 +182,7 @@ def create_transaction(
     transaction: TransactionBase,
     compte_envoyeur: CompteBancaire,
     compte_receveur: CompteBancaire,
+    status: int
 ):
 
     compte_envoyeur.solde -= transaction.montant
@@ -191,7 +192,7 @@ def create_transaction(
         description=transaction.description,
         compte_id_envoyeur=compte_envoyeur.id,
         compte_id_receveur=compte_receveur.id,
-        status=0,
+        status=status,
     )
     db.add(db_transaction)
     db.commit()
@@ -300,8 +301,8 @@ def asleep_transaction(
                 ),
                 compte_envoyeur=compte_receveur,
                 compte_receveur=compte_courant,
+                status=1,
             )
-
 
 def check_account_limit(compte_bancaire: CompteBancaire):
     if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:

@@ -354,6 +354,7 @@ def send_transaction(
         transaction=transaction,
         compte_envoyeur=compte_envoyeur,
         compte_receveur=compte_receveur,
+        status=0,
     )
     threading.Thread(
         target=asleep_transaction,

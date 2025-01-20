@@ -55,6 +55,7 @@ class CompteBancaireResponse(BaseModel):
     nom: str
     iban: str
     solde: Decimal
+    est_compte_courant: bool
     date_creation: datetime
 
     class Config:

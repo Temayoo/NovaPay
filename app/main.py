@@ -1,6 +1,7 @@
 import threading
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, Transaction, CompteBancaire, Depot
@@ -33,12 +34,20 @@ from database import SessionLocal, engine, Base
 from models import User
 from schemas import UserBase, UserCreate
 from crud import create_user, get_user_by_username, verify_password
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, ORIGIN
 
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ORIGIN,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 http_bearer = HTTPBearer()
 

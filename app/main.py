@@ -306,6 +306,47 @@ def create_depot_endpoint(
         )
 
 
+@app.get("/{compte_id}/depots", response_model=list[DepotResponse], tags=["Deposits"])
+def get_depot(
+    compte_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    compte = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.id == compte_id)
+        .filter(CompteBancaire.user_id == current_user.id)
+        .filter(CompteBancaire.date_deletion == None)
+        .first()
+    )
+    if not compte:
+        raise HTTPException(status_code=404, detail="Compte bancaire introuvable")
+    if compte.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour accéder à ces dépôts",
+        )
+    depots = (
+        db.query(Depot)
+        .filter(Depot.compte_bancaire_id == compte_id)
+        .filter(Depot.date_deletion == None)
+        .all()
+    )
+
+    depots_response = [
+        DepotResponse(
+            date=depot.date,
+            montant=depot.montant,
+            description=depot.description,
+            compte_nom=depot.compte_bancaire.nom,
+            compte_iban=depot.compte_bancaire.iban,
+        )
+        for depot in depots
+    ]
+
+    return depots_response
+
+
 # ===========================
 # Transaction Features
 # ===========================

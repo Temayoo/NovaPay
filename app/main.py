@@ -100,7 +100,9 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
     compte_courant = create_premier_compte_bancaire(
         db=db,
-        compte=CompteBancaireCreate(nom="Compte Courant", type="Compte Courant", est_compte_courant=True),
+        compte=CompteBancaireCreate(
+            nom="Compte Courant", type="Compte Courant", est_compte_courant=True
+        ),
         user_id=db_user.id,
     )
 

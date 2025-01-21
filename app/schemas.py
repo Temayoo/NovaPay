@@ -45,6 +45,7 @@ class UserInDB(UserBase):
 
 class CompteBancaireCreate(BaseModel):
     nom: str
+    type: str
 
     class Config:
         orm_mode = True
@@ -53,6 +54,7 @@ class CompteBancaireCreate(BaseModel):
 class CompteBancaireResponse(BaseModel):
     id: int
     nom: str
+    type: str
     iban: str
     solde: Decimal
     est_compte_courant: bool

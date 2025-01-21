@@ -60,9 +60,11 @@ def create_premier_compte_bancaire(
         solde = 0
         est_compte_courant = True
         nom = "Compte Courant"
+        type = "Compte Courant"
 
         db_compte = CompteBancaire(
             nom=nom,
+            type=type,
             solde=solde,
             iban=iban,
             est_compte_courant=est_compte_courant,
@@ -86,6 +88,7 @@ def create_compte_bancaire(db: Session, compte: CompteBancaireCreate, user_id: i
 
         db_compte = CompteBancaire(
             nom=compte.nom,
+            type=compte.type,
             solde=solde,
             iban=iban,
             est_compte_courant=est_compte_courant,

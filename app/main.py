@@ -163,10 +163,12 @@ def get_comptes_bancaires(
         .all()
     )
     return comptes
+
+
 @app.get(
-        "/comptes-bancaires/{compte_id}",
-        response_model=CompteBancaireResponse,
-        tags=["Bank Account"],
+    "/comptes-bancaires/{compte_id}",
+    response_model=CompteBancaireResponse,
+    tags=["Bank Account"],
 )
 def get_compte_bancaire(
     compte_id: int,
@@ -183,9 +185,11 @@ def get_compte_bancaire(
         raise HTTPException(status_code=404, detail="Compte bancaire non trouvé")
     if compte.user_id != current_user.id:
         raise HTTPException(
-            status_code=403, detail="Vous n'avez pas les permissions nécessaires pour accéder à ce compte"
+            status_code=403,
+            detail="Vous n'avez pas les permissions nécessaires pour accéder à ce compte",
         )
     return compte
+
 
 @app.get(
     "/compte-courant",

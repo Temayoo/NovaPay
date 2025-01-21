@@ -389,6 +389,73 @@ def get_depot(
 # ===========================
 # Transaction Features
 # ===========================
+@app.get("/recette", response_model=list[TransactionResponse],
+    tags=["Transaction"])
+def get_recette(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    comptes = get_comptes_bancaires(db=db, current_user=current_user)
+    for compte in comptes:
+        print(compte.id)
+        transactions = (
+            db.query(Transaction)
+            .join(
+                CompteBancaire,
+                (Transaction.compte_id_envoyeur == CompteBancaire.id)
+                | (Transaction.compte_id_receveur == CompteBancaire.id),
+            )
+            .filter(CompteBancaire.user_id == current_user.id)
+            .filter(Transaction.compte_id_receveur == compte.id)
+            .filter(Transaction.date_deletion == None)
+            .order_by(Transaction.date_creation.desc())
+            .all()
+        )
+
+        transactions_response = [
+            TransactionResponse(
+                id=transaction.id,
+                montant=transaction.montant,
+                description=transaction.description,
+                compte_envoyeur=CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
+                compte_receveur=CompteBancaireResponse.model_validate(transaction.compte_receveur),
+                date_creation=transaction.date_creation,
+                status=transaction.status,
+            )
+            for transaction in transactions
+        ]
+    return transactions_response
+
+@app.get("/depense", response_model=list[TransactionResponse],
+    tags=["Transaction"])
+def get_depense(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    comptes = get_comptes_bancaires(db=db, current_user=current_user)
+    for compte in comptes:
+        print(compte.id)
+        transactions = (
+            db.query(Transaction)
+            .join(
+                CompteBancaire,
+                (Transaction.compte_id_envoyeur == CompteBancaire.id)
+                | (Transaction.compte_id_receveur == CompteBancaire.id),
+            )
+            .filter(CompteBancaire.user_id == current_user.id)
+            .filter(Transaction.compte_id_envoyeur == compte.id)
+            .filter(Transaction.date_deletion == None)
+            .order_by(Transaction.date_creation.desc())
+            .all()
+        )
+
+        transactions_response = [
+            TransactionResponse(
+                id=transaction.id,
+                montant=transaction.montant,
+                description=transaction.description,
+                compte_envoyeur=CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
+                compte_receveur=CompteBancaireResponse.model_validate(transaction.compte_receveur),
+                date_creation=transaction.date_creation,
+                status=transaction.status,
+            )
+            for transaction in transactions
+        ]
+    return transactions_response
 
 
 @app.get(
@@ -604,3 +671,4 @@ def get_transaction_details(
         "date_creation": transaction.date_creation,
         "status": transaction.status,
     }
+

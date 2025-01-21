@@ -24,6 +24,15 @@ def verify_password(plain_password, hashed_password) -> bool:
 # ===========================
 # User Management Functions
 # ===========================
+
+
+def verify_user_password(db: Session, user_id: int, password: str) -> bool:
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return False
+    return verify_password(password, user.hashed_password)
+
+
 def create_user(db: Session, user: UserCreate):
     # Crée un nouvel utilisateur dans la base de données
     db_user = User(

@@ -25,6 +25,7 @@ class CompteBancaire(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nom = Column(String, index=True)
+    type = Column(String, default=None)
     solde = Column(Numeric(precision=10, scale=2), default=0.00)
     iban = Column(String, unique=True, index=True)
     est_compte_courant = Column(Boolean, default=False)

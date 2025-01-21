@@ -18,6 +18,7 @@ from crud import (
     create_user,
     get_user_by_username,
     verify_password,
+    verify_user_password,
     create_compte_bancaire,
     create_premier_compte_bancaire,
     get_user_by_email,
@@ -131,6 +132,15 @@ async def login(form_data: UserLogin, db: Session = Depends(get_db)):
 @app.get("/me", response_model=UserBase, tags=["User"])
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@app.post("/verify-password", tags=["User"])
+def verify_password_endpoint(
+    password: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> bool:
+    return verify_user_password(db, current_user.id, password)
 
 
 # ===========================
@@ -379,13 +389,20 @@ def get_depot(
 # Transaction Features
 # ===========================
 
-@app.get("/transactions", response_model=list[TransactionResponse], tags=["Transaction"])
+
+@app.get(
+    "/transactions", response_model=list[TransactionResponse], tags=["Transaction"]
+)
 def get_all_transactions(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     transactions = (
         db.query(Transaction)
-        .join(CompteBancaire, (Transaction.compte_id_envoyeur == CompteBancaire.id) | (Transaction.compte_id_receveur == CompteBancaire.id))
+        .join(
+            CompteBancaire,
+            (Transaction.compte_id_envoyeur == CompteBancaire.id)
+            | (Transaction.compte_id_receveur == CompteBancaire.id),
+        )
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
         .order_by(Transaction.date_creation.desc())
@@ -406,6 +423,8 @@ def get_all_transactions(
     ]
 
     return transactions_response
+
+
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(
     transaction: TransactionBase,

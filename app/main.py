@@ -13,6 +13,7 @@ from schemas import (
     CompteBancaireResponse,
     DepotResponse,
     TransactionBase,
+    TransactionResponse,
 )
 from crud import (
     create_user,
@@ -414,8 +415,8 @@ def get_all_transactions(
             id=transaction.id,
             montant=transaction.montant,
             description=transaction.description,
-            compte_envoyeur=transaction.compte_envoyeur.iban,
-            compte_receveur=transaction.compte_receveur.iban,
+            compte_envoyeur=CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
+            compte_receveur=CompteBancaireResponse.model_validate(transaction.compte_receveur),
             date_creation=transaction.date_creation,
             status=transaction.status,
         )
@@ -490,8 +491,8 @@ def send_transaction(
         id=db_transaction.id,
         montant=db_transaction.montant,
         description=db_transaction.description,
-        compte_envoyeur=db_transaction.compte_envoyeur.iban,
-        compte_receveur=db_transaction.compte_receveur.iban,
+        compte_envoyeur=CompteBancaireResponse.model_validate(db_transaction.compte_envoyeur),
+        compte_receveur=CompteBancaireResponse.model_validate(db_transaction.compte_receveur),
         date_creation=db_transaction.date_creation,
         status=db_transaction.status,
     )

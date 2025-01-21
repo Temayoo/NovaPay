@@ -1,5 +1,5 @@
 # schemas.py
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, ConfigDict
 from decimal import Decimal
 from datetime import datetime
 
@@ -52,6 +52,7 @@ class CompteBancaireCreate(BaseModel):
 
 
 class CompteBancaireResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     nom: str
     type: str
@@ -59,9 +60,6 @@ class CompteBancaireResponse(BaseModel):
     solde: Decimal
     est_compte_courant: bool
     date_creation: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class DepotCreate(BaseModel):
@@ -95,8 +93,8 @@ class TransactionResponse(BaseModel):
     id: int
     montant: Decimal
     description: str
-    compte_envoyeur: str
-    compte_receveur: str
+    compte_envoyeur: CompteBancaireResponse
+    compte_receveur: CompteBancaireResponse
     date_creation: datetime
     status: int
 

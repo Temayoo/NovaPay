@@ -5,7 +5,7 @@ from time import sleep
 from models import User, CompteBancaire, Depot, Transaction
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from schemas import UserCreate, CompteBancaireCreate, DepotCreate, TransactionBase
+from schemas import UserCreate, CompteBancaireCreate, DepotCreate, TransactionBase, CompteBancaireResponse
 import random
 import string
 from datetime import datetime
@@ -246,8 +246,8 @@ def get_my_transactions(db: Session, compte_id: int):
                 "id": transaction.id,
                 "montant": transaction.montant,
                 "description": transaction.description,
-                "compte_envoyeur": compte_envoyeur.iban,
-                "compte_receveur": compte_receveur.iban,
+                "compte_envoyeur": CompteBancaireResponse.model_validate(compte_envoyeur),
+                "compte_receveur": CompteBancaireResponse.model_validate(compte_receveur),
                 "date_creation": transaction.date_creation,
                 "status": transaction.status,
             }

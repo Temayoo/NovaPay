@@ -379,19 +379,20 @@ def get_depot(
 # Transaction Features
 # ===========================
 
-@app.get("/transactions", response_model=list[TransactionResponse], tags=["Deposits"])
-def get_transaction(
+@app.get("/transactions", response_model=list[TransactionResponse], tags=["Transaction"])
+def get_all_transactions(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     transactions = (
         db.query(Transaction)
-        .join(CompteBancaire, (CompteBancaire.id == Transaction.compte_id_envoyeur | CompteBancaire.id == Transaction.compte_id_receveur))
+        .join(CompteBancaire, (Transaction.compte_id_envoyeur == CompteBancaire.id) | (Transaction.compte_id_receveur == CompteBancaire.id))
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
+        .order_by(Transaction.date_creation.desc())
         .all()
     )
 
-    transactions_responce = [
+    transactions_response = [
         TransactionResponse(
             id=transaction.id,
             montant=transaction.montant,
@@ -404,7 +405,7 @@ def get_transaction(
         for transaction in transactions
     ]
 
-    return transactions_responce
+    return transactions_response
 @app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
 def send_transaction(
     transaction: TransactionBase,

@@ -1,5 +1,5 @@
 import threading
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -731,7 +731,10 @@ def create_beneficiaire(
 ):
     compte = db.query(CompteBancaire).filter(CompteBancaire.iban == beneficiaire.iban).first()
     if not compte:
-        raise HTTPException(status_code=404, detail="Compte bancaire non trouvé")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte bancaire non trouvé")
+    if compte.user_id == current_user.id:
+        
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous ne pouvez pas ajouter votre propre compte comme beneficiaire")
     db_beneficiaire = Beneficiaire(
         pseudo=beneficiaire.pseudo,
         user_id=current_user.id,

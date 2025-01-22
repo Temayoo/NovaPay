@@ -19,7 +19,6 @@ class User(Base):
         "CompteBancaire", back_populates="user", cascade="all, delete-orphan"
     )
 
-
 class CompteBancaire(Base):
     __tablename__ = "comptes_bancaires"
 
@@ -54,17 +53,21 @@ class CompteBancaire(Base):
     )
 
 
-class Beneficiaire(Base):
-    __tablename__ = "beneficiaire"
+# class Beneficiaire(Base):
+#     __tablename__ = "beneficiaire"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    comptes_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
-    pseudo = Column(String)
-    user = relationship("User", back_populates="beneficiaires")
-    comptes_bancaires = relationship(
-        "CompteBancaire", back_populates="beneficiaire", cascade="all, delete-orphan"
-    )
+#     id = Column(Integer, primary_key=True, index=True)
+#     user_id = Column(Integer, ForeignKey("users.id"))
+#     comptes_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
+#     pseudo = Column(String)
+
+#     # Relations
+#     user = relationship(
+#         "User", back_populates="beneficiaires"
+#     )
+#     comptes_bancaires = relationship(
+#         "CompteBancaire", back_populates="beneficiaire", cascade="all, delete-orphan"
+#     )
 
 
 class Depot(Base):

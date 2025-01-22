@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
-from models import Base, Transaction, CompteBancaire, Depot
+from models import Base, Transaction, CompteBancaire, Depot, Beneficiaire
 from schemas import (
     UserCreate,
     UserBase,
@@ -15,6 +15,8 @@ from schemas import (
     TransactionBase,
     PasswordUpdate,
     TransactionResponse,
+    BeneficiaireCreate,
+    BeneficiaireResponse,
 )
 from crud import (
     create_user,
@@ -26,8 +28,8 @@ from crud import (
     get_user_by_email,
     create_depot,
     create_transaction,
-    get_my_transactions,
     asleep_transaction,
+    # create_beneficiaire,
     hash_password,
 )
 from jose import JWTError, jwt
@@ -715,3 +717,40 @@ def get_transaction_details(
         "date_creation": transaction.date_creation,
         "status": transaction.status,
     }
+
+
+# ===========================
+# Beneficiaire Features
+# ===========================
+
+@app.post("/beneficiaire", tags=["Beneficiaire"])
+def create_beneficiaire(
+    beneficiaire: BeneficiaireCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    compte = db.query(CompteBancaire).filter(CompteBancaire.iban == beneficiaire.iban).first()
+    if not compte:
+        raise HTTPException(status_code=404, detail="Compte bancaire non trouvé")
+    
+    db_beneficiaire = Beneficiaire(
+        pseudo=beneficiaire.pseudo,
+        user_id=current_user.id,
+        iban=beneficiaire.iban,
+        comptes_id=compte.id,
+    )
+    db.add(db_beneficiaire)
+    db.commit()
+    db.refresh(db_beneficiaire)
+    return db_beneficiaire
+
+# @app.get("/beneficiaire", tags=["Beneficiaire"])
+# def get_beneficiaire(
+#     response_model=list[BeneficiaireResponse],
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     beneficiaire = db.query(Beneficiaire).filter(Beneficiaire.user_id == current_user.id).all()
+
+#     return beneficiaire
+

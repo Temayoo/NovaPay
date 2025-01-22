@@ -2,7 +2,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from time import sleep
-from models import User, CompteBancaire, Depot, Transaction
+from models import User, CompteBancaire, Depot, Transaction, Beneficiaire
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from schemas import (
@@ -11,6 +11,7 @@ from schemas import (
     DepotCreate,
     TransactionBase,
     CompteBancaireResponse,
+    BeneficiaireCreate,
 )
 import random
 import string

@@ -12,7 +12,8 @@ from schemas import (
     DepotCreate,
     CompteBancaireResponse,
     DepotResponse,
-    TransactionBase, PasswordUpdate,
+    TransactionBase,
+    PasswordUpdate,
 )
 from crud import (
     create_user,
@@ -25,7 +26,8 @@ from crud import (
     create_depot,
     create_transaction,
     get_my_transactions,
-    asleep_transaction, hash_password,
+    asleep_transaction,
+    hash_password,
 )
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -142,6 +144,7 @@ def verify_password_endpoint(
 ) -> bool:
     return verify_user_password(db, current_user.id, password)
 
+
 @app.post("/change-password", tags=["Authentication"])
 async def change_password(
     password_data: PasswordUpdate,
@@ -150,7 +153,10 @@ async def change_password(
 ):
 
     if password_data.old_password == password_data.new_password:
-        raise HTTPException(status_code=400, detail="Le nouveau mot de passe ne doit pas être identique à l'ancien.")
+        raise HTTPException(
+            status_code=400,
+            detail="Le nouveau mot de passe ne doit pas être identique à l'ancien.",
+        )
 
     if not verify_user_password(db, current_user.id, password_data.old_password):
         raise HTTPException(status_code=400, detail="Ancien mot de passe incorrect")
@@ -162,6 +168,7 @@ async def change_password(
     db.commit()
 
     return {"message": "Mot de passe modifié avec succès"}
+
 
 # ===========================
 # Bank Account Features

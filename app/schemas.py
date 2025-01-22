@@ -38,6 +38,7 @@ class UserCreate(UserBase):
                 raise ValueError("Password must contain at least one number.")
         return values
 
+
 class PasswordUpdate(BaseModel):
     old_password: str
     new_password: str
@@ -53,6 +54,7 @@ class PasswordUpdate(BaseModel):
             if not any(c.isdigit() for c in password):
                 raise ValueError("Password must contain at least one number.")
         return values
+
 
 class UserInDB(UserBase):
     hashed_password: str

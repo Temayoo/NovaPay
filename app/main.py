@@ -389,15 +389,19 @@ def get_depot(
 # ===========================
 # Transaction Features
 # ===========================
-@app.get("/{compte_id}/recette", response_model=list[TransactionResponse],
-    tags=["Transaction"])
-def get_recette(compte_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@app.get(
+    "/{compte_id}/recette",
+    response_model=list[TransactionResponse],
+    tags=["Transaction"],
+)
+def get_recette(
+    compte_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     transactions = (
         db.query(Transaction)
-        .join(
-            CompteBancaire,
-            Transaction.compte_id_receveur == CompteBancaire.id
-        )
+        .join(CompteBancaire, Transaction.compte_id_receveur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.id == compte_id)
         .filter(Transaction.date_deletion == None)
@@ -411,8 +415,12 @@ def get_recette(compte_id: int, db: Session = Depends(get_db), current_user: Use
             type="recette",
             montant=transaction.montant,
             description=transaction.description,
-            compte_envoyeur=CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
-            compte_receveur=CompteBancaireResponse.model_validate(transaction.compte_receveur),
+            compte_envoyeur=CompteBancaireResponse.model_validate(
+                transaction.compte_envoyeur
+            ),
+            compte_receveur=CompteBancaireResponse.model_validate(
+                transaction.compte_receveur
+            ),
             date_creation=transaction.date_creation,
             status=transaction.status,
         )
@@ -421,15 +429,20 @@ def get_recette(compte_id: int, db: Session = Depends(get_db), current_user: Use
 
     return transactions_response
 
-@app.get("/{compte_id}/depense", response_model=list[TransactionResponse],
-    tags=["Transaction"])
-def get_depense(compte_id: int,db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+@app.get(
+    "/{compte_id}/depense",
+    response_model=list[TransactionResponse],
+    tags=["Transaction"],
+)
+def get_depense(
+    compte_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     transactions = (
         db.query(Transaction)
-        .join(
-            CompteBancaire,
-            Transaction.compte_id_envoyeur == CompteBancaire.id
-        )
+        .join(CompteBancaire, Transaction.compte_id_envoyeur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.id == compte_id)
         .filter(Transaction.date_deletion == None)
@@ -443,8 +456,12 @@ def get_depense(compte_id: int,db: Session = Depends(get_db), current_user: User
             type="depense",
             montant=transaction.montant,
             description=transaction.description,
-            compte_envoyeur=CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
-            compte_receveur=CompteBancaireResponse.model_validate(transaction.compte_receveur),
+            compte_envoyeur=CompteBancaireResponse.model_validate(
+                transaction.compte_envoyeur
+            ),
+            compte_receveur=CompteBancaireResponse.model_validate(
+                transaction.compte_receveur
+            ),
             date_creation=transaction.date_creation,
             status=transaction.status,
         )
@@ -462,10 +479,7 @@ def get_all_transactions(
 ):
     depenses = (
         db.query(Transaction)
-        .join(
-            CompteBancaire,
-            Transaction.compte_id_envoyeur == CompteBancaire.id
-        )
+        .join(CompteBancaire, Transaction.compte_id_envoyeur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
         .order_by(Transaction.date_creation.desc())
@@ -478,8 +492,12 @@ def get_all_transactions(
             type="depense",
             montant=depense.montant,
             description=depense.description,
-            compte_envoyeur=CompteBancaireResponse.model_validate(depense.compte_envoyeur),
-            compte_receveur=CompteBancaireResponse.model_validate(depense.compte_receveur),
+            compte_envoyeur=CompteBancaireResponse.model_validate(
+                depense.compte_envoyeur
+            ),
+            compte_receveur=CompteBancaireResponse.model_validate(
+                depense.compte_receveur
+            ),
             date_creation=depense.date_creation,
             status=depense.status,
         )
@@ -488,10 +506,7 @@ def get_all_transactions(
 
     recettes = (
         db.query(Transaction)
-        .join(
-            CompteBancaire,
-            Transaction.compte_id_receveur == CompteBancaire.id
-        )
+        .join(CompteBancaire, Transaction.compte_id_receveur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
         .order_by(Transaction.date_creation.desc())
@@ -504,8 +519,12 @@ def get_all_transactions(
             type="recette",
             montant=recette.montant,
             description=recette.description,
-            compte_envoyeur=CompteBancaireResponse.model_validate(recette.compte_envoyeur),
-            compte_receveur=CompteBancaireResponse.model_validate(recette.compte_receveur),
+            compte_envoyeur=CompteBancaireResponse.model_validate(
+                recette.compte_envoyeur
+            ),
+            compte_receveur=CompteBancaireResponse.model_validate(
+                recette.compte_receveur
+            ),
             date_creation=recette.date_creation,
             status=recette.status,
         )
@@ -580,8 +599,12 @@ def send_transaction(
         id=db_transaction.id,
         montant=db_transaction.montant,
         description=db_transaction.description,
-        compte_envoyeur=CompteBancaireResponse.model_validate(db_transaction.compte_envoyeur),
-        compte_receveur=CompteBancaireResponse.model_validate(db_transaction.compte_receveur),
+        compte_envoyeur=CompteBancaireResponse.model_validate(
+            db_transaction.compte_envoyeur
+        ),
+        compte_receveur=CompteBancaireResponse.model_validate(
+            db_transaction.compte_receveur
+        ),
         date_creation=db_transaction.date_creation,
         status=db_transaction.status,
     )
@@ -616,6 +639,7 @@ def cancel_transaction(
     db.refresh(compte_envoyeur)
     db.refresh(transaction)
     return {"message": "Transaction annulée avec succès"}
+
 
 @app.get("/transactions/{transaction_id}", tags=["Transaction"])
 def get_transaction_details(
@@ -664,4 +688,3 @@ def get_transaction_details(
         "date_creation": transaction.date_creation,
         "status": transaction.status,
     }
-

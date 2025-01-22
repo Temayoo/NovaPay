@@ -732,11 +732,9 @@ def create_beneficiaire(
     compte = db.query(CompteBancaire).filter(CompteBancaire.iban == beneficiaire.iban).first()
     if not compte:
         raise HTTPException(status_code=404, detail="Compte bancaire non trouvé")
-    
     db_beneficiaire = Beneficiaire(
         pseudo=beneficiaire.pseudo,
         user_id=current_user.id,
-        iban=beneficiaire.iban,
         comptes_id=compte.id,
     )
     db.add(db_beneficiaire)
@@ -744,13 +742,26 @@ def create_beneficiaire(
     db.refresh(db_beneficiaire)
     return db_beneficiaire
 
-# @app.get("/beneficiaire", tags=["Beneficiaire"])
-# def get_beneficiaire(
-#     response_model=list[BeneficiaireResponse],
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user),
-# ):
-#     beneficiaire = db.query(Beneficiaire).filter(Beneficiaire.user_id == current_user.id).all()
+@app.get("/beneficiaire", tags=["Beneficiaire"])
+def get_beneficiaire(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    beneficiaire = (
+        db.query(Beneficiaire, CompteBancaire)
+        .join(CompteBancaire, Beneficiaire.comptes_id == CompteBancaire.id)
+        .filter(Beneficiaire.user_id == current_user.id)
+        .filter(CompteBancaire.date_deletion == None)
+        .all()
+    )
 
-#     return beneficiaire
+    return [
+        BeneficiaireResponse(
+            id=b.id,
+            compte=CompteBancaireResponse.model_validate(c),
+            pseudo=b.pseudo
+        )
+        for b, c in beneficiaire
+    ]
+
 

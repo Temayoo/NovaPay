@@ -18,6 +18,7 @@ class User(Base):
     comptes_bancaires = relationship(
         "CompteBancaire", back_populates="user", cascade="all, delete-orphan"
     )
+    beneficiaires = relationship("Beneficiaire", back_populates="user")
 
 
 class CompteBancaire(Base):
@@ -35,6 +36,8 @@ class CompteBancaire(Base):
 
     # Relations
     user = relationship("User", back_populates="comptes_bancaires")
+
+    beneficiaire = relationship("Beneficiaire", back_populates="comptes_bancaires")
 
     deposits = relationship(
         "Depot", back_populates="compte_bancaire", cascade="all, delete-orphan"
@@ -63,7 +66,7 @@ class Beneficiaire(Base):
     pseudo = Column(String)
     user = relationship("User", back_populates="beneficiaires")
     comptes_bancaires = relationship(
-        "CompteBancaire", back_populates="beneficiaire", cascade="all, delete-orphan"
+        "CompteBancaire", back_populates="beneficiaire"
     )
 
 

@@ -228,26 +228,14 @@ def get_my_transactions(db: Session, compte_id: int):
 
     response = []
     for transaction in transactions:
-        compte_envoyeur = (
-            db.query(CompteBancaire)
-            .filter(CompteBancaire.id == transaction.compte_id_envoyeur)
-            .filter(CompteBancaire.date_deletion == None)
-            .first()
-        )
-        compte_receveur = (
-            db.query(CompteBancaire)
-            .filter(CompteBancaire.id == transaction.compte_id_receveur)
-            .filter(CompteBancaire.date_deletion == None)
-            .first()
-        )
 
         response.append(
             {
                 "id": transaction.id,
                 "montant": transaction.montant,
                 "description": transaction.description,
-                "compte_envoyeur": CompteBancaireResponse.model_validate(compte_envoyeur),
-                "compte_receveur": CompteBancaireResponse.model_validate(compte_receveur),
+                "compte_envoyeur": CompteBancaireResponse.model_validate(transaction.compte_envoyeur),
+                "compte_receveur": CompteBancaireResponse.model_validate(transaction.compte_receveur),
                 "date_creation": transaction.date_creation,
                 "status": transaction.status,
             }

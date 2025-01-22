@@ -91,6 +91,7 @@ class TransactionBase(BaseModel):
 
 class TransactionResponse(BaseModel):
     id: int
+    type: str
     montant: Decimal
     description: str
     compte_envoyeur: CompteBancaireResponse

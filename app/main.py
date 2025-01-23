@@ -563,7 +563,7 @@ def get_all_transactions(
     return depense_responce + recette_response
 
 
-@app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
+@app.post("/transactions", response_model=int, tags=["Transaction"])
 def send_transaction(
     transaction: TransactionBase,
     db: Session = Depends(get_db),
@@ -624,20 +624,21 @@ def send_transaction(
         args=(db, db_transaction, db_transaction.compte_receveur),
     ).start()
     
-    return TransactionResponse(
-        id=db_transaction.id,
-        type='depense',
-        montant=db_transaction.montant,
-        description=db_transaction.description,
-        compte_envoyeur=CompteBancaireResponse.model_validate(
-            db_transaction.compte_envoyeur
-        ),
-        compte_receveur=CompteBancaireResponse.model_validate(
-            db_transaction.compte_receveur
-        ),
-        date_creation=db_transaction.date_creation,
-        status=db_transaction.status,
-    )
+    # return TransactionResponse(
+    #     id=db_transaction.id,
+    #     type='depense',
+    #     montant=db_transaction.montant,
+    #     description=db_transaction.description,
+    #     compte_envoyeur=CompteBancaireResponse.model_validate(
+    #         db_transaction.compte_envoyeur
+    #     ),
+    #     compte_receveur=CompteBancaireResponse.model_validate(
+    #         db_transaction.compte_receveur
+    #     ),
+    #     date_creation=db_transaction.date_creation,
+    #     status=db_transaction.status,
+    # )
+    return db_transaction.id
 
 
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])

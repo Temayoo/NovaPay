@@ -20,6 +20,7 @@ class User(Base):
     )
     beneficiaires = relationship("Beneficiaire", back_populates="user")
 
+
 class CompteBancaire(Base):
     __tablename__ = "comptes_bancaires"
 
@@ -64,9 +65,7 @@ class Beneficiaire(Base):
     comptes_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
     pseudo = Column(String)
     user = relationship("User", back_populates="beneficiaires")
-    comptes_bancaires = relationship(
-        "CompteBancaire", back_populates="beneficiaire"
-    )
+    comptes_bancaires = relationship("CompteBancaire", back_populates="beneficiaire")
 
 
 class Depot(Base):

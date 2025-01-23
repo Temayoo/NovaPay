@@ -626,7 +626,7 @@ def send_transaction(
         target=asleep_transaction,
         args=(db, db_transaction, db_transaction.compte_receveur),
     ).start()
-    
+
     # return TransactionResponse(
     #     id=db_transaction.id,
     #     type='depense',
@@ -728,18 +728,28 @@ def get_transaction_details(
 # Beneficiaire Features
 # ===========================
 
+
 @app.post("/beneficiaire", tags=["Beneficiaire"])
 def create_beneficiaire(
     beneficiaire: BeneficiaireCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    compte = db.query(CompteBancaire).filter(CompteBancaire.iban == beneficiaire.iban).first()
+    compte = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.iban == beneficiaire.iban)
+        .first()
+    )
     if not compte:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte bancaire non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Compte bancaire non trouvé"
+        )
     if compte.user_id == current_user.id:
 
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous ne pouvez pas ajouter votre propre compte comme beneficiaire")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous ne pouvez pas ajouter votre propre compte comme beneficiaire",
+        )
     db_beneficiaire = Beneficiaire(
         pseudo=beneficiaire.pseudo,
         user_id=current_user.id,
@@ -749,6 +759,7 @@ def create_beneficiaire(
     db.commit()
     db.refresh(db_beneficiaire)
     return db_beneficiaire
+
 
 @app.get("/beneficiaire", tags=["Beneficiaire"])
 def get_beneficiaire(
@@ -765,11 +776,7 @@ def get_beneficiaire(
 
     return [
         BeneficiaireResponse(
-            id=b.id,
-            compte=CompteBancaireResponse.model_validate(c),
-            pseudo=b.pseudo
+            id=b.id, compte=CompteBancaireResponse.model_validate(c), pseudo=b.pseudo
         )
         for b, c in beneficiaire
     ]
-
-

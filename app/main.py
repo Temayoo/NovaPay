@@ -623,9 +623,10 @@ def send_transaction(
         target=asleep_transaction,
         args=(db, db_transaction, db_transaction.compte_receveur),
     ).start()
-
+    
     return TransactionResponse(
         id=db_transaction.id,
+        type='depense',
         montant=db_transaction.montant,
         description=db_transaction.description,
         compte_envoyeur=CompteBancaireResponse.model_validate(
@@ -733,7 +734,7 @@ def create_beneficiaire(
     if not compte:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte bancaire non trouvé")
     if compte.user_id == current_user.id:
-        
+
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous ne pouvez pas ajouter votre propre compte comme beneficiaire")
     db_beneficiaire = Beneficiaire(
         pseudo=beneficiaire.pseudo,

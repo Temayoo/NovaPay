@@ -2,7 +2,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from time import sleep
-from models import User, CompteBancaire, Depot, Transaction
+from models import User, CompteBancaire, Depot, Transaction, Beneficiaire
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from schemas import (
@@ -11,6 +11,7 @@ from schemas import (
     DepotCreate,
     TransactionBase,
     CompteBancaireResponse,
+    BeneficiaireCreate,
 )
 import random
 import string
@@ -257,7 +258,7 @@ def get_my_transactions(db: Session, compte_id: int):
 def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
-    sleep(50)
+    sleep(5)
     transaction = (
         db.query(Transaction)
         .filter(Transaction.id == transaction.id)

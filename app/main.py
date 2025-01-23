@@ -1,10 +1,10 @@
 import threading
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
-from models import Base, Transaction, CompteBancaire, Depot
+from models import Base, Transaction, CompteBancaire, Depot, Beneficiaire
 from schemas import (
     UserCreate,
     UserBase,
@@ -15,6 +15,8 @@ from schemas import (
     TransactionBase,
     PasswordUpdate,
     TransactionResponse,
+    BeneficiaireCreate,
+    BeneficiaireResponse,
 )
 from crud import (
     create_user,
@@ -26,8 +28,8 @@ from crud import (
     get_user_by_email,
     create_depot,
     create_transaction,
-    get_my_transactions,
     asleep_transaction,
+    # create_beneficiaire,
     hash_password,
 )
 from jose import JWTError, jwt
@@ -432,6 +434,7 @@ def get_recette(
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.id == compte_id)
         .filter(Transaction.date_deletion == None)
+        .filter(Transaction.status != 2)
         .order_by(Transaction.date_creation.desc())
         .all()
     )
@@ -473,6 +476,7 @@ def get_depense(
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(CompteBancaire.id == compte_id)
         .filter(Transaction.date_deletion == None)
+        .filter(Transaction.status != 2)
         .order_by(Transaction.date_creation.desc())
         .all()
     )
@@ -509,6 +513,7 @@ def get_all_transactions(
         .join(CompteBancaire, Transaction.compte_id_envoyeur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
+        .filter(Transaction.status != 2)
         .order_by(Transaction.date_creation.desc())
         .all()
     )
@@ -561,7 +566,7 @@ def get_all_transactions(
     return depense_responce + recette_response
 
 
-@app.post("/transactions", response_model=TransactionResponse, tags=["Transaction"])
+@app.post("/transactions", response_model=int, tags=["Transaction"])
 def send_transaction(
     transaction: TransactionBase,
     db: Session = Depends(get_db),
@@ -622,19 +627,21 @@ def send_transaction(
         args=(db, db_transaction, db_transaction.compte_receveur),
     ).start()
 
-    return TransactionResponse(
-        id=db_transaction.id,
-        montant=db_transaction.montant,
-        description=db_transaction.description,
-        compte_envoyeur=CompteBancaireResponse.model_validate(
-            db_transaction.compte_envoyeur
-        ),
-        compte_receveur=CompteBancaireResponse.model_validate(
-            db_transaction.compte_receveur
-        ),
-        date_creation=db_transaction.date_creation,
-        status=db_transaction.status,
-    )
+    # return TransactionResponse(
+    #     id=db_transaction.id,
+    #     type='depense',
+    #     montant=db_transaction.montant,
+    #     description=db_transaction.description,
+    #     compte_envoyeur=CompteBancaireResponse.model_validate(
+    #         db_transaction.compte_envoyeur
+    #     ),
+    #     compte_receveur=CompteBancaireResponse.model_validate(
+    #         db_transaction.compte_receveur
+    #     ),
+    #     date_creation=db_transaction.date_creation,
+    #     status=db_transaction.status,
+    # )
+    return db_transaction.id
 
 
 @app.post("/transactions/{transaction_id}/cancel", tags=["Transaction"])
@@ -715,3 +722,61 @@ def get_transaction_details(
         "date_creation": transaction.date_creation,
         "status": transaction.status,
     }
+
+
+# ===========================
+# Beneficiaire Features
+# ===========================
+
+
+@app.post("/beneficiaire", tags=["Beneficiaire"])
+def create_beneficiaire(
+    beneficiaire: BeneficiaireCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    compte = (
+        db.query(CompteBancaire)
+        .filter(CompteBancaire.iban == beneficiaire.iban)
+        .first()
+    )
+    if not compte:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Compte bancaire non trouvé"
+        )
+    if compte.user_id == current_user.id:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous ne pouvez pas ajouter votre propre compte comme beneficiaire",
+        )
+    db_beneficiaire = Beneficiaire(
+        pseudo=beneficiaire.pseudo,
+        user_id=current_user.id,
+        comptes_id=compte.id,
+    )
+    db.add(db_beneficiaire)
+    db.commit()
+    db.refresh(db_beneficiaire)
+    return db_beneficiaire
+
+
+@app.get("/beneficiaire", tags=["Beneficiaire"])
+def get_beneficiaire(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    beneficiaire = (
+        db.query(Beneficiaire, CompteBancaire)
+        .join(CompteBancaire, Beneficiaire.comptes_id == CompteBancaire.id)
+        .filter(Beneficiaire.user_id == current_user.id)
+        .filter(CompteBancaire.date_deletion == None)
+        .all()
+    )
+
+    return [
+        BeneficiaireResponse(
+            id=b.id, compte=CompteBancaireResponse.model_validate(c), pseudo=b.pseudo
+        )
+        for b, c in beneficiaire
+    ]

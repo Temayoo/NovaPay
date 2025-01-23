@@ -118,3 +118,17 @@ class TransactionResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class BeneficiaireCreate(BaseModel):
+    pseudo: str
+    iban: str
+
+    class Config:
+        orm_mode = True
+
+
+class BeneficiaireResponse(BaseModel):
+    id: int
+    compte: CompteBancaireResponse
+    pseudo: str

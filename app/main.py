@@ -17,6 +17,7 @@ from schemas import (
     TransactionResponse,
     BeneficiaireCreate,
     BeneficiaireResponse,
+    PrelevementAutomatiqueCreate,
 )
 from crud import (
     create_user,
@@ -29,11 +30,12 @@ from crud import (
     create_depot,
     create_transaction,
     asleep_transaction,
-    # create_beneficiaire,
     hash_password,
+    create_prelevement_automatique,
 )
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from Celery.tasks import effectuer_prelevement_automatique
 
 from schemas import UserLogin, TransactionResponse
 from database import SessionLocal, engine, Base
@@ -780,3 +782,14 @@ def get_beneficiaire(
         )
         for b, c in beneficiaire
     ]
+
+
+@app.post("/prelevements-automatiques", tags=["Prélèvements Automatiques"])
+def create_prelevement_automatique_endpoint(
+    prelevement: PrelevementAutomatiqueCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Créez le prélèvement automatique
+    prelevement = create_prelevement_automatique(db, prelevement)
+    return {"message": "Prélèvement automatique créé avec succès", "id": prelevement.id}

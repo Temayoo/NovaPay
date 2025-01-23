@@ -132,3 +132,10 @@ class BeneficiaireResponse(BaseModel):
     id: int
     compte: CompteBancaireResponse
     pseudo: str
+
+class PrelevementAutomatiqueCreate(BaseModel):
+    montant: Decimal
+    frequence: str
+    compte_envoyeur_id: int
+    compte_receveur_id: int
+

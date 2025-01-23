@@ -56,7 +56,6 @@ class CompteBancaire(Base):
         cascade="all, delete-orphan",
     )
 
-
 class Beneficiaire(Base):
     __tablename__ = "beneficiaire"
 
@@ -110,3 +109,19 @@ class Transaction(Base):
         foreign_keys=[compte_id_receveur],
         back_populates="transactions_reçues",
     )
+
+class PrelevementAutomatique(Base):
+    __tablename__ = "prelevements_automatiques"
+
+    id = Column(Integer, primary_key=True, index=True)
+    montant = Column(Numeric(precision=10, scale=2))
+    frequence = Column(String)  # e.g., "mensuel", "hebdomadaire"
+    date_debut = Column(DateTime)
+    compte_envoyeur_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
+    compte_receveur_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_deletion = Column(DateTime, default=None)
+
+    # Relations
+    compte_envoyeur = relationship("CompteBancaire", foreign_keys=[compte_envoyeur_id])
+    compte_receveur = relationship("CompteBancaire", foreign_keys=[compte_receveur_id])

@@ -2,7 +2,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from time import sleep
-from models import User, CompteBancaire, Depot, Transaction, Beneficiaire
+from models import User, CompteBancaire, Depot, Transaction, PrelevementAutomatique
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from schemas import (
@@ -11,7 +11,7 @@ from schemas import (
     DepotCreate,
     TransactionBase,
     CompteBancaireResponse,
-    BeneficiaireCreate,
+    PrelevementAutomatiqueCreate,
 )
 import random
 import string
@@ -320,3 +320,24 @@ def check_account_limit(compte_bancaire: CompteBancaire):
     if compte_bancaire.solde > 50000 and not compte_bancaire.est_compte_courant:
         return compte_bancaire.solde - 50000
     return 0
+
+
+# ===========================
+# Prelevement Automatique
+# ===========================
+def create_prelevement_automatique(db: Session, prelevement: PrelevementAutomatiqueCreate):
+    db_prelevement = PrelevementAutomatique(
+        montant=prelevement.montant,
+        frequence=prelevement.frequence,
+        compte_envoyeur_id=prelevement.compte_envoyeur_id,
+        compte_receveur_id=prelevement.compte_receveur_id,
+        date_debut=datetime.utcnow()
+    )
+    db.add(db_prelevement)
+    db.commit()
+    db.refresh(db_prelevement)
+    return db_prelevement
+
+
+def get_prelevements_automatiques(db: Session, user_id: int):
+    return db.query(PrelevementAutomatique).filter(PrelevementAutomatique.user_id == user_id).all()

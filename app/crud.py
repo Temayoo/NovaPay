@@ -258,7 +258,7 @@ def get_my_transactions(db: Session, compte_id: int):
 def asleep_transaction(
     db: Session, transaction: Transaction, compte_receveur: CompteBancaire
 ):
-    sleep(50)
+    sleep(5)
     transaction = (
         db.query(Transaction)
         .filter(Transaction.id == transaction.id)

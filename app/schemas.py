@@ -135,7 +135,12 @@ class BeneficiaireResponse(BaseModel):
 
 class PrelevementAutomatiqueCreate(BaseModel):
     montant: Decimal
+    description: str
     frequence: str
-    compte_envoyeur_id: int
-    compte_receveur_id: int
+    date_debut: datetime = datetime.utcnow()
+    compte_envoyeur_iban: str
+    compte_receveur_iban: str
+
+    class Config:
+        orm_mode = True
 

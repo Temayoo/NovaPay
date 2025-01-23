@@ -784,12 +784,24 @@ def get_beneficiaire(
     ]
 
 
-@app.post("/prelevements-automatiques", tags=["Prélèvements Automatiques"])
+# ===========================
+# Prelevement Automatique
+# ===========================
+@app.post("/prelevements-automatiques", tags=["Prelevement Automatique"])
 def create_prelevement_automatique_endpoint(
     prelevement: PrelevementAutomatiqueCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    compte_envoyeur = db.query(CompteBancaire).filter(CompteBancaire.iban == prelevement.compte_envoyeur_iban).first()
+    compte_receveur = db.query(CompteBancaire).filter(CompteBancaire.iban == prelevement.compte_receveur_iban).first()
+    if not compte_envoyeur or not compte_receveur:
+        raise HTTPException(status_code=404, detail="Compte bancaire non trouvé")
+    if compte_envoyeur.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas les permissions nécessaires pour effectuer ce prélèvement")
+    prelevement.compte_envoyeur_iban = compte_envoyeur.id
+    prelevement.compte_receveur_iban = compte_receveur.id
     # Créez le prélèvement automatique
     prelevement = create_prelevement_automatique(db, prelevement)
     return {"message": "Prélèvement automatique créé avec succès", "id": prelevement.id}
+

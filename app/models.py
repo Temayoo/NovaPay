@@ -111,12 +111,13 @@ class Transaction(Base):
     )
 
 class PrelevementAutomatique(Base):
-    __tablename__ = "prelevements_automatiques"
+    __tablename__ = "prelevement"
 
     id = Column(Integer, primary_key=True, index=True)
     montant = Column(Numeric(precision=10, scale=2))
+    description = Column(String)
     frequence = Column(String)  # e.g., "mensuel", "hebdomadaire"
-    date_debut = Column(DateTime)
+    date_debut = Column(DateTime, default=datetime.utcnow)
     compte_envoyeur_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
     compte_receveur_id = Column(Integer, ForeignKey("comptes_bancaires.id"))
     date_creation = Column(DateTime, default=datetime.utcnow)

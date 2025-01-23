@@ -328,10 +328,11 @@ def check_account_limit(compte_bancaire: CompteBancaire):
 def create_prelevement_automatique(db: Session, prelevement: PrelevementAutomatiqueCreate):
     db_prelevement = PrelevementAutomatique(
         montant=prelevement.montant,
+        description=prelevement.description,
         frequence=prelevement.frequence,
-        compte_envoyeur_id=prelevement.compte_envoyeur_id,
-        compte_receveur_id=prelevement.compte_receveur_id,
-        date_debut=datetime.utcnow()
+        compte_envoyeur_id=prelevement.compte_envoyeur_iban,
+        compte_receveur_id=prelevement.compte_receveur_iban,
+        date_debut=prelevement.date_debut,
     )
     db.add(db_prelevement)
     db.commit()

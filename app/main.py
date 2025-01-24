@@ -541,6 +541,7 @@ def get_all_transactions(
         .join(CompteBancaire, Transaction.compte_id_receveur == CompteBancaire.id)
         .filter(CompteBancaire.user_id == current_user.id)
         .filter(Transaction.date_deletion == None)
+        .filter(Transaction.status != 2)
         .order_by(Transaction.date_creation.desc())
         .all()
     )
